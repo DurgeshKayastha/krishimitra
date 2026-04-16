@@ -1,0 +1,452 @@
+import { useState, useRef } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { postDisease, postGroq, postReport } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
+import { useLocation } from '@/hooks/useLocation'
+import { Upload, Camera, Bug, AlertTriangle, CheckCircle, Loader2, FileDown } from 'lucide-react'
+import jsPDF from 'jspdf'
+
+const CROP_TYPES = ['Select crop (optional)', 'Tomato', 'Potato', 'Wheat', 'Rice', 'Cotton', 'Maize', 'Soybean', 'Sugarcane', 'Other']
+
+const SEVERITY_COLORS = {
+  low: 'bg-green-100 text-green-700',
+  medium: 'bg-orange-100 text-orange-700',
+  high: 'bg-red-100 text-red-700',
+}
+
+export default function DiseaseDetect() {
+  const { user } = useAuth()
+  const { lat, lon } = useLocation()
+  const fileRef = useRef()
+
+  const [image, setImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [cropType, setCropType] = useState('')
+  const [status, setStatus] = useState('') // analysing | insights | done
+  const [result, setResult] = useState(null)
+  const [groqReport, setGroqReport] = useState('')
+  const [error, setError] = useState('')
+  const [reported, setReported] = useState(false)
+  const [reporting, setReporting] = useState(false)
+
+  const downloadPDF = () => {
+    const pdf = new jsPDF()
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const margin = 15
+    let y = 20
+
+    // header bar
+    pdf.setFillColor(27, 67, 50)
+    pdf.rect(0, 0, pageWidth, 14, 'F')
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFontSize(11)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('KrishiMitra — Disease Detection Report', margin, 9)
+
+    // date
+    pdf.setFontSize(8)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, pageWidth - margin, 9, { align: 'right' })
+
+    y = 28
+    pdf.setTextColor(0, 0, 0)
+
+    // farmer info
+    pdf.setFillColor(240, 253, 244)
+    pdf.rect(margin, y, pageWidth - margin * 2, 22, 'F')
+    pdf.setFontSize(9)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(27, 67, 50)
+    pdf.text('Farmer Details', margin + 3, y + 7)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(60, 60, 60)
+    pdf.text(`Name: ${user?.displayName || 'Not provided'}`, margin + 3, y + 14)
+    pdf.text(`Contact: ${user?.phoneNumber || user?.email || 'Not provided'}`, margin + 3, y + 19)
+    y += 28
+
+    // detection result
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(11)
+    pdf.setTextColor(27, 67, 50)
+    pdf.text('Detection Result', margin, y)
+    y += 6
+    pdf.setDrawColor(45, 106, 79)
+    pdf.line(margin, y, pageWidth - margin, y)
+    y += 6
+
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(10)
+    pdf.setTextColor(0, 0, 0)
+    pdf.text(`Disease: ${result?.diseaseName || 'Unknown'}`, margin, y)
+    y += 6
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(9)
+    pdf.text(`Crop Type: ${cropType || 'Not specified'}`, margin, y)
+    y += 5
+    pdf.text(`Confidence: ${result?.confidence || 0}%`, margin, y)
+    y += 5
+    pdf.text(`Severity: ${result?.confidence > 70 ? 'High' : result?.confidence > 40 ? 'Medium' : 'Low'}`, margin, y)
+    y += 5
+    pdf.text(`Location: ${lat ? `${lat.toFixed(4)}, ${lon.toFixed(4)}` : 'Not available'}`, margin, y)
+    y += 10
+
+    // AI report
+    if (groqReport) {
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(11)
+      pdf.setTextColor(27, 67, 50)
+      pdf.text('AI Diagnosis Report', margin, y)
+      y += 6
+      pdf.setDrawColor(45, 106, 79)
+      pdf.line(margin, y, pageWidth - margin, y)
+      y += 6
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(8.5)
+      pdf.setTextColor(40, 40, 40)
+      const lines = pdf.splitTextToSize(groqReport, pageWidth - margin * 2)
+      lines.forEach(line => {
+        if (y > 270) { pdf.addPage(); y = 20 }
+        pdf.text(line, margin, y)
+        y += 5
+      })
+    }
+
+    // footer
+    pdf.setFontSize(7)
+    pdf.setTextColor(150, 150, 150)
+    pdf.text('KrishiMitra — AI for Agriculture | Anjivani College of Engineering, Kopargaon', pageWidth / 2, 290, { align: 'center' })
+
+    pdf.save(`krishimitra-disease-report-${Date.now()}.pdf`)
+  }
+
+  const handleFile = (file) => {
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB'); return }
+    setImage(file)
+    setImagePreview(URL.createObjectURL(file))
+    setResult(null)
+    setGroqReport('')
+    setError('')
+    setReported(false)
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    handleFile(e.dataTransfer.files[0])
+  }
+
+  const detect = async () => {
+    if (!image) return
+    setError('')
+    setResult(null)
+    setGroqReport('')
+
+    try {
+      // Step 1 — detect disease
+      setStatus('analysing')
+      const formData = new FormData()
+      formData.append('image', image)
+      if (cropType) formData.append('cropType', cropType)
+      const { data: detectData } = await postDisease(formData)
+
+      // parse result from either crop.health or groq-vision
+      let diseaseName = 'Unknown'
+      let confidence = 0
+      let description = ''
+
+      if (detectData.source === 'groq-vision') {
+        diseaseName = 'See AI Report Below'
+        confidence = 85
+        description = detectData.result?.raw || ''
+      } else if (detectData.source === 'crop.health') {
+        const top = detectData.result?.result?.disease?.suggestions?.[0]
+        diseaseName = top?.name || 'Unknown'
+        confidence = Math.round((top?.probability || 0) * 100)
+        description = top?.details?.description || ''
+      } else {
+        diseaseName = 'Analysis Complete'
+        confidence = 0
+        description = 'Configure API keys for detailed analysis'
+      }
+
+      const parsed = { diseaseName, confidence, description, source: detectData.source }
+      setResult(parsed)
+
+      // Step 2 — Groq enhancement
+      setStatus('insights')
+      const { data: groqData } = await postGroq({
+        messages: [{
+          role: 'user',
+          content: `A farmer uploaded a crop image${cropType ? ` of ${cropType}` : ''}. The disease detection result is: "${diseaseName}". ${description ? `Description: ${description}` : ''}
+          
+Generate a farmer-friendly report with these sections:
+1. What is this disease
+2. How it spreads  
+3. Immediate actions (2-3 steps)
+4. Organic remedy
+5. Chemical remedy
+6. Prevention tips
+
+Keep it simple and practical for an Indian farmer.`,
+        }],
+      })
+      setGroqReport(groqData.text)
+      setStatus('done')
+
+      // save to localStorage history
+      const history = JSON.parse(localStorage.getItem('km_disease_history') || '[]')
+      history.unshift({ diseaseName, cropType, date: new Date().toLocaleDateString('en-IN'), imagePreview })
+      localStorage.setItem('km_disease_history', JSON.stringify(history.slice(0, 5)))
+
+    } catch (e) {
+      setError('Detection failed. Please try again.')
+      setStatus('')
+    }
+  }
+
+  const submitReport = async () => {
+    setReporting(true)
+    try {
+      await postReport({
+        farmerUid: user?.uid || 'anonymous',
+        farmerName: user?.displayName || 'Anonymous',
+        farmerPhone: user?.phoneNumber || '',
+        cropType: cropType || 'Unknown',
+        diseaseName: result?.diseaseName || 'Unknown',
+        confidenceScore: result?.confidence || 0,
+        severity: result?.confidence > 70 ? 'high' : result?.confidence > 40 ? 'medium' : 'low',
+        groqReport,
+        lat: lat || 0,
+        lon: lon || 0,
+        status: 'new',
+      })
+      setReported(true)
+    } catch {
+      setError('Failed to submit report. Try again.')
+    } finally {
+      setReporting(false)
+    }
+  }
+
+  const reset = () => {
+    setImage(null)
+    setImagePreview(null)
+    setCropType('')
+    setResult(null)
+    setGroqReport('')
+    setError('')
+    setStatus('')
+    setReported(false)
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      <div className="mt-8 mb-6">
+        <h1 className="text-2xl font-bold text-[#1B4332]">Disease Detector</h1>
+        <p className="text-sm text-gray-500 mt-1">Upload a photo of your crop to get instant AI diagnosis</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left — upload */}
+        <div className="flex flex-col gap-4">
+          {/* Drag and drop area */}
+          <Card className="rounded-xl shadow-sm border border-gray-100">
+            <CardContent className="p-4">
+              <div
+                onDrop={handleDrop}
+                onDragOver={e => e.preventDefault()}
+                onClick={() => fileRef.current.click()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                  imagePreview ? 'border-[#2D6A4F]' : 'border-gray-200 hover:border-[#2D6A4F]'
+                }`}
+              >
+                {imagePreview ? (
+                  <img src={imagePreview} alt="crop" className="max-h-48 mx-auto rounded-lg object-contain" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <Upload className="w-10 h-10" />
+                    <p className="text-sm font-medium">Drag & drop or click to upload</p>
+                    <p className="text-xs">JPG, PNG, WEBP · Max 5MB</p>
+                  </div>
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={e => handleFile(e.target.files[0])} />
+
+              {/* Camera button for mobile */}
+              <Button variant="outline" size="sm" className="w-full mt-3 border-gray-300 text-gray-600"
+                onClick={() => { fileRef.current.accept = 'image/*;capture=camera'; fileRef.current.click() }}>
+                <Camera className="w-4 h-4 mr-2" /> Take Photo
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Crop selector */}
+          <Card className="rounded-xl shadow-sm border border-gray-100">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-gray-700 block mb-2">Crop Type</label>
+              <select value={cropType} onChange={e => setCropType(e.target.value === 'Select crop (optional)' ? '' : e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-[#2D6A4F] focus:outline-none">
+                {CROP_TYPES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </CardContent>
+          </Card>
+
+          <Button onClick={detect} disabled={!image || status === 'analysing' || status === 'insights'}
+            className="bg-[#2D6A4F] hover:bg-[#1B4332] text-white w-full h-11">
+            {status === 'analysing' ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analysing image...</>
+            ) : status === 'insights' ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Getting AI insights...</>
+            ) : (
+              <><Bug className="w-4 h-4 mr-2" /> Detect Disease</>
+            )}
+          </Button>
+
+          {error && (
+            <div className="bg-[#FFEBEE] border border-[#C62828] text-[#C62828] text-sm px-4 py-2 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {/* Recent history */}
+          {(() => {
+            const history = JSON.parse(localStorage.getItem('km_disease_history') || '[]')
+            if (!history.length) return null
+            return (
+              <Card className="rounded-xl shadow-sm border border-gray-100">
+                <CardContent className="p-4">
+                  <p className="text-sm font-semibold text-[#1B4332] mb-3">Recent Detections</p>
+                  <div className="flex flex-col gap-2">
+                    {history.map((h, i) => (
+                      <div key={i} className="flex items-center gap-3 text-sm">
+                        <img src={h.imagePreview} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                        <div>
+                          <p className="font-medium text-[#111827]">{h.diseaseName}</p>
+                          <p className="text-xs text-gray-400">{h.cropType || 'Unknown crop'} · {h.date}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })()}
+        </div>
+
+        {/* Right — results */}
+        <div className="flex flex-col gap-4">
+          {!result && !status && (
+            <Card className="rounded-xl shadow-sm border border-gray-100 bg-[#f0fdf4]">
+              <CardContent className="p-6 text-center text-gray-400">
+                <Bug className="w-12 h-12 mx-auto mb-3 text-[#D8F3DC]" />
+                <p className="text-sm">Upload a crop photo and click Detect Disease to get AI diagnosis</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Detection result card */}
+          {(result || status === 'analysing') && (
+            <Card className="rounded-xl shadow-sm border border-gray-100">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bug className="w-4 h-4 text-[#C62828]" />
+                  <p className="text-sm font-semibold text-[#1B4332]">Detection Result</p>
+                </div>
+                {status === 'analysing' ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                ) : result && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-[#111827]">{result.diseaseName}</p>
+                      {result.confidence > 0 && (
+                        <Badge className={SEVERITY_COLORS[result.confidence > 70 ? 'high' : result.confidence > 40 ? 'medium' : 'low']}>
+                          {result.confidence}% confidence
+                        </Badge>
+                      )}
+                    </div>
+                    {result.description && (
+                      <p className="text-sm text-gray-600 leading-relaxed">{result.description}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Groq AI report */}
+          {(groqReport || status === 'insights') && (
+            <Card className="rounded-xl shadow-sm border border-gray-100 bg-[#f0fdf4]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <p className="text-sm font-semibold text-[#1B4332]">AI Diagnosis Report</p>
+                  <Badge className="bg-[#D8F3DC] text-[#2D6A4F] text-xs">Groq AI</Badge>
+                </div>
+                {status === 'insights' ? (
+                  <div className="space-y-2">
+                    {Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
+                  </div>
+                ) : (
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">{groqReport}</pre>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Action buttons after detection */}
+          {status === 'done' && (
+            <div className="flex flex-col gap-2">
+              {reported ? (
+                <div className="bg-[#D8F3DC] border border-[#2D6A4F] text-[#2D6A4F] text-sm px-4 py-3 rounded-lg flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Report submitted to agricultural authorities
+                </div>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="border-[#C62828] text-[#C62828] hover:bg-[#FFEBEE] w-full">
+                      <AlertTriangle className="w-4 h-4 mr-2" /> Alert Authorities
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Submit Disease Report?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will send a report to agricultural officers with your location, crop type, and disease details. Your contact info will be included if you are logged in.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={submitReport} disabled={reporting}
+                        className="bg-[#C62828] hover:bg-red-800 text-white">
+                        {reporting ? 'Submitting...' : 'Yes, Submit Report'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+
+              <Button variant="outline" onClick={downloadPDF}
+                className="border-[#1565C0] text-[#1565C0] hover:bg-[#E3F2FD] w-full">
+                <FileDown className="w-4 h-4 mr-2" /> Download PDF Report
+              </Button>
+
+              <Button variant="outline" onClick={reset} className="border-gray-300 text-gray-600 w-full">
+                Detect Another
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
