@@ -1,0 +1,1095 @@
+﻿🌾 KrishiMitra 
+
+AI for Agriculture & Rural Innovation 
+
+Product Requirements Document (PRD) 
+
+Version 1.0  |  Prepared for: Amazon Q Developer (Sonnet 4.5) 
+
+Anjivani College of Engineering, Kopargaon  |  April 2026 
+
+🌾  HOW TO USE THIS PRD WITH AMAZON Q: Give Amazon Q this entire document. Then say: 
+"Read this PRD completely. Set up the project scaffold exactly as described in Section 6. Do 
+NOT skip any step. Ask me for confirmation before installing any paid service." 
+
+ 
+
+  
+
+
+
+1.  Project Overview 
+
+1.1  Product Name 
+
+KrishiMitra — Your Smart Farming Companion 
+
+1.2  One-Line Description 
+
+A React web application that empowers Indian farmers with real-time crop prices, AI-driven crop 
+recommendations, plant disease detection, and community alerts — all powered by free government 
+APIs and Groq AI. 
+
+1.3  Problem Statement 
+
+Indian farmers, especially in rural Maharashtra (Kopargaon region), lack access to: 
+
+• Real-time mandi prices near them, forcing reliance on middlemen 
+
+• Data-driven crop selection based on their soil and local weather 
+
+• Early disease detection before it spreads across multiple farms 
+
+• A centralised platform combining all these tools in one place 
+
+ 
+
+1.4  Target Users 
+
+User Type Who They Are Primary Need 
+
+Farmer (Primary) Small/medium landholders, Prices, crop suggestions, disease 
+Kopargaon belt detection 
+
+Farmer Leader / Panchayat Village-level coordinator Disease outbreak reports, alerts 
+
+Agricultural Officer Krishi Vibhag officials View flagged disease reports in 
+dashboard 
+
+Developer / Admin You (Durgesh) Firebase admin, deploy, maintain 
+
+ 
+
+1.5  Tech Stack Decision 
+
+🌾  STACK CHOSEN: React (Vite) + Tailwind CSS + shadcn/ui + Firebase + Node.js (Express) 
+backend + Groq API. This is the stack Amazon Q must use. Do not substitute any part without 
+asking. 
+
+ 
+
+Layer Technology Why 
+
+Frontend Framework React 18 + Vite Fast builds, you are learning React, ideal for 
+this project 
+
+
+
+UI Library Tailwind CSS + shadcn/ui Best combo for polished UI with AI assistance, 
+free 
+
+Routing React Router v6 Industry standard SPA routing 
+
+Maps / Location Firebase + Google Maps JS User location, nearby mandis on map 
+API (free tier) 
+
+Auth Firebase Authentication Free, easy, farmers can use phone number 
+(Google + Phone OTP) 
+
+Database Firestore (Firebase) Real-time, free tier generous, no backend 
+needed for simple reads 
+
+File Storage Firebase Storage Store disease images, reports (free 5GB) 
+
+Backend Node.js + Express Proxy for govt APIs that don't allow CORS, 
+(deployed on Render.com handle Groq calls 
+free tier) 
+
+AI / LLM Groq API (llama-4-scout- Free tier, fast, you already use it 
+17b) 
+
+Disease Detection crop.health API by Kindwise Purpose-built for food crops 
+(free tier: 100 calls/month) + 
+Groq vision fallback 
+
+Weather Open-Meteo API 100% free, no key required 
+
+Crop Prices data.gov.in Agmarknet API Official Govt of India mandi prices 
+(free, needs API key from 
+data.gov.in) 
+
+Soil Data ICAR / data.gov.in soil Free government datasets 
+datasets + Groq for 
+interpretation 
+
+Icons Lucide React (already in Free, consistent 
+shadcn/ui) 
+
+Charts Recharts Free, works great with React 
+
+Deployment Vercel (frontend) + Render Both free tiers sufficient 
+(backend) 
+
+ 
+
+  
+
+
+
+2.  Features & Pages 
+
+🌾  AMAZON Q INSTRUCTION: Each feature below is a separate page or major component. 
+Build them in the order listed. Do not combine features that are marked as separate pages. 
+
+ 
+
+2.1  Page: Landing / Home  (/) 
+
+The first screen a farmer sees. Must feel welcoming, simple, and work well on mobile. 
+
+Components to build: 
+
+• Hero section with app name, tagline, and two CTA buttons: "Get Started" and "View Crop 
+Prices" 
+
+• Feature cards grid (6 cards): Prices, Crop Advisor, Disease Detect, Weather, Alerts, Community 
+
+• Language selector in navbar (Hindi / Marathi / English) — store choice in localStorage 
+
+• Simple stats bar: "3000+ Mandis tracked  |  50+ Crops  |  Real-time data" 
+
+Notes for Amazon Q: 
+
+◦ Use shadcn/ui Card component for feature cards 
+◦ Navbar must have: Logo, nav links, language toggle, Login button 
+◦ Mobile-first. Hamburger menu on mobile using shadcn/ui Sheet component 
+◦ Background: subtle gradient from #f0fdf4 (very light green) to white 
+
+ 
+
+2.2  Page: Crop Prices Dashboard  (/prices) 
+
+THIS IS THE MOST IMPORTANT PAGE. Separate full-page dashboard. Farmers check this daily. 
+
+Features: 
+
+• Auto-detect user's state using geolocation (browser navigator.geolocation), fall back to manual 
+selector 
+
+• Filter bar: State selector, District selector, Commodity selector, Date picker 
+
+• Data table with columns: Commodity | Market | Min Price | Max Price | Modal Price | Date 
+
+• Recharts line chart showing price trend for selected commodity over past 7 days 
+
+• "Nearby Mandis" card: shows closest 3-5 mandis to the user based on GPS 
+
+• Groq-powered price insight card: summarises whether prices are high/low this week in plain 
+language 
+
+• Export to CSV button 
+
+API Integration: 
+
+◦ Primary: data.gov.in API — GET https://api.data.gov.in/resource/9ef84268-d588-465a-a308-
+a864a43d0070 (Agmarknet dataset). Needs free API key from data.gov.in. Register at data.gov.in to 
+get key. 
+
+◦ Parameters: api-key, format=json, filters[state]=Maharashtra, filters[district]=Ahmednagar, limit=50 
+
+
+
+◦ IMPORTANT: This API does not support CORS. All calls MUST go through the Node.js backend 
+proxy, not directly from React. 
+
+◦ Groq call: Send the raw price data to Groq and ask it to generate a 2-3 sentence farmer-friendly 
+insight. Example prompt in backend: 'Given these mandi prices for [commodity] in [district]: [data], 
+write a 2-sentence insight for a farmer about whether to sell now or wait. Write in simple English.' 
+
+Notes for Amazon Q: 
+
+◦ Table must use shadcn/ui Table component 
+◦ Add loading skeletons (shadcn/ui Skeleton) while data fetches 
+◦ Handle empty state gracefully with a message and retry button 
+◦ Mobile: hide some columns, show essential ones only 
+
+ 
+
+2.3  Page: Crop Advisor  (/crop-advisor) 
+
+Helps farmers decide WHAT to plant based on their location, soil type, and season. 
+
+Features: 
+
+• Step 1 — Location: User either allows GPS or manually enters state/district/taluka 
+
+• Step 2 — Soil Input: Dropdown for soil type (Red, Black/Regur, Alluvial, Laterite, Sandy) + 
+optional soil pH slider (4.0–9.0) + nitrogen/phosphorus/potassium dropdowns 
+(Low/Medium/High) 
+
+• Step 3 — Season: Kharif / Rabi / Zaid selector with current season auto-selected based on 
+month 
+
+• Step 4 — AI Suggestion: Sends all inputs to Groq and displays: 
+
+◦ Top 5 recommended crops with brief reasoning 
+◦ Best practices for each crop (irrigation, fertiliser, spacing) 
+◦ Expected yield range per acre 
+◦ Current market price trend for that crop (from Agmarknet) 
+
+• Weather context card: Fetches from Open-Meteo and shows current temp, rainfall forecast, 
+humidity 
+
+• Soil Health Card link: Button linking to soilhealth.dac.gov.in for official soil report 
+
+Groq Prompt Template (put this in backend): 
+
+System: You are an expert agricultural advisor for Maharashtra, India. Always give practical, 
+farmer-friendly advice. User: Location: {district}, {state}. Soil: {soilType}, pH {pH}, 
+N:{nitrogen} P:{phosphorus} K:{potassium}. Season: {season}. Weather: Avg temp {temp}°C, 
+Expected rainfall {rainfall}mm. Suggest top 5 crops. For each: crop name, why it suits this 
+soil+climate, 3 best practices, expected yield per acre, current market outlook. 
+
+API: 
+
+◦ Open-Meteo: GET https://api.open-
+meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,precipitation_sum
+&timezone=Asia%2FKolkata&forecast_days=7 — NO API KEY NEEDED 
+
+◦ Groq: use meta-llama/llama-4-scout-17b-16e-instruct model via backend 
+
+ 
+
+
+
+2.4  Page: Disease Detector  (/disease-detect) 
+
+Upload a photo of a diseased crop and get instant AI diagnosis + report to authorities. 
+
+Features: 
+
+• Image upload area: drag-and-drop or camera capture (mobile). Accept jpg/png/webp, max 5MB 
+
+• Crop type selector (optional): helps improve accuracy — Tomato, Potato, Wheat, Rice, Cotton, 
+Maize, Soybean, Sugarcane, Other 
+
+• Detect Disease button: sends image to crop.health API 
+
+• Results card showing: Disease name, Confidence %, Description, Affected parts 
+
+• Groq Enhancement: Takes the raw API result and generates a farmer-friendly report with: What 
+is this disease, How it spreads, Immediate actions, Organic remedy, Chemical remedy, 
+Prevention 
+
+• PDF Report download: Generates a formatted PDF with farmer details + diagnosis + Groq 
+report 
+
+• Alert Authorities button: Saves report to Firestore under /diseaseReports collection with: farmer 
+name, contact, location (lat/lon), crop, disease, severity, image URL, timestamp. This creates an 
+alert for agricultural officers. 
+
+API Integration: 
+
+◦ Primary: crop.health API (kindwise.com) — POST https://crop.health/api/v1/identification with base64 
+image. Free tier: 100 identifications/month. Requires API key from kindwise.com (free signup). 
+
+◦ Fallback: If crop.health fails or quota exceeded, send image to Groq vision model (meta-llama/llama-
+4-scout-17b-16e-instruct supports vision) with prompt: 'Identify the plant disease in this image. Give: 
+disease name, confidence, symptoms visible, immediate treatment.' 
+
+◦ Firebase Storage: Upload image before analysis, store URL in Firestore report 
+
+Notes for Amazon Q: 
+
+◦ Show loading spinner with status messages: 'Analysing image...', 'Getting AI insights...' 
+◦ Store recent detections in localStorage for history (last 5) 
+◦ Alert button must show a confirmation dialog (shadcn/ui AlertDialog) before submitting 
+
+ 
+
+2.5  Page: Weather & Farm Calendar  (/weather) 
+
+Hyperlocal weather for the farmer's location with farming activity recommendations. 
+
+Features: 
+
+• Current weather card: temperature, humidity, wind speed, UV index, feels like 
+
+• 7-day forecast strip with icons (sunny/rainy/cloudy) and daily high/low 
+
+• Rainfall chart: Recharts bar chart of precipitation for next 7 days 
+
+• Farming calendar: AI-generated suggestions like "Good day for sowing", "Avoid spraying 
+pesticide (rain expected)", "Ideal for irrigation" 
+
+• Weather alerts: If rainfall > 30mm predicted, show warning card in red 
+
+API: 
+
+
+
+◦ Open-Meteo: GET https://api.open-
+meteo.com/v1/forecast?latitude=LAT&longitude=LON&hourly=temperature_2m,relative_humidity_2m,
+windspeed_10m,uv_index&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weat
+hercode&timezone=Asia%2FKolkata&forecast_days=7 
+
+◦ NO API KEY REQUIRED for Open-Meteo 
+◦ Groq: send 7-day forecast data, generate a farming calendar. Prompt: 'Given this 7-day weather 
+
+forecast for a farmer in Maharashtra: {data}. Generate a day-by-day farming activity calendar with 1-2 
+practical suggestions per day.' 
+
+ 
+
+2.6  Page: Disease Alert Map  (/alerts) 
+
+Community map showing disease outbreaks reported by farmers. Authorities can view and respond. 
+
+Features: 
+
+• Google Maps embed showing pins for reported disease cases (from Firestore /diseaseReports) 
+
+• Each pin shows: crop name, disease, date, farmer's village 
+
+• Filter by: Disease type, Date range, Crop type 
+
+• Alert list sidebar: Recent reports sorted by date 
+
+• Admin mode (Firebase Auth role check): Agricultural officers can mark reports as "Contained" or 
+"Under Investigation" 
+
+Firebase: 
+
+◦ Read Firestore collection /diseaseReports in real-time using onSnapshot listener 
+◦ Map markers should use different colors: Red = New/Unreviewed, Orange = Under Investigation, 
+
+Green = Contained 
+
+Maps Setup: 
+
+◦ Use Google Maps JavaScript API (requires enabling in Firebase Console > Build > Hosting, then 
+Google Cloud Console) 
+
+◦ Use @react-google-maps/api npm package 
+◦ Restrict API key to your domain in Google Cloud Console to avoid quota abuse 
+
+ 
+
+2.7  Page: Community Forum  (/community) 
+
+A simple Reddit-like discussion board for farmers. Fits your existing Reddit-like project. 
+
+Features: 
+
+• Post categories: Crop Tips, Disease Help, Market Talk, Equipment, Government Schemes 
+
+• Post card: title, author, category badge, upvote count, comment count, time ago 
+
+• Create post: title, body (textarea), category selector, optional image upload 
+
+• Comments: nested (1 level deep only), real-time with Firestore 
+
+• Upvote button (one vote per user, tracked in Firestore) 
+
+• Search bar: filter posts by keyword 
+
+
+
+Firebase: 
+
+◦ Firestore collections: /posts (postId, title, body, authorId, authorName, category, upvotes, 
+commentCount, imageUrl, createdAt), /posts/{postId}/comments (same structure) 
+
+◦ Firebase Auth required to post; read is public 
+
+ 
+
+2.8  Page: Government Schemes  (/schemes) 
+
+A curated, searchable list of Central and State government schemes for farmers. 
+
+Features: 
+
+• Scheme cards: name, description, eligibility, apply link, deadline 
+
+• Filter by: Central/State, crop type, farmer category (small/marginal/women) 
+
+• Search by keyword 
+
+• Bookmark schemes (stored in Firestore per user) 
+
+• Data source: Static JSON file maintained manually OR data.gov.in scheme datasets 
+
+Schemes to include initially: 
+
+◦ PM-KISAN (Rs 6000/year direct transfer) 
+◦ PM Fasal Bima Yojana (crop insurance) 
+◦ Soil Health Card Scheme 
+◦ Kisan Credit Card 
+◦ Maharashtra Shetkari Sanman Yojana 
+◦ National Agriculture Market (eNAM) 
+
+ 
+
+2.9  Page: My Farm Profile  (/profile) 
+
+Logged-in farmer's personal dashboard with their farm data. 
+
+Features: 
+
+• Farm details form: Name, state, district, land size (acres), primary crops, soil type 
+
+• My Reports: List of disease reports submitted by this user 
+
+• Bookmarked schemes 
+
+• Price alerts: Set price alert for a commodity (e.g., "Alert me when Tomato price > Rs 
+2000/quintal in Pune") — stored in Firestore, checked daily by backend cron 
+
+• Language preference setting 
+
+Firebase: 
+
+◦ Firestore: /users/{uid} document storing all profile and farm data 
+◦ Firebase Auth: Google Sign-In + Phone OTP (important for farmers without Google account) 
+
+ 
+
+  
+
+
+
+3.  Additional Feature Ideas 
+
+Build these after core features are working. Tell Amazon Q: "Implement Phase 2 features from Section 
+3 only after all Section 2 pages are complete." 
+
+ 
+
+Feature Description APIs Needed Priority 
+
+Crop Price Prediction Use 30-day price history from Agmarknet + Groq High 
+Agmarknet + Groq to predict next 
+week's price trend 
+
+Irrigation Calculator Input crop type + soil type + Open-Meteo + Groq High 
+weather → Groq calculates how 
+much water to apply per acre 
+and when 
+
+Fertiliser Advisor Input crop + soil NPK + growth Groq High 
+stage → suggest fertiliser 
+dosage and schedule 
+
+Pest Alert System If disease of a certain type is Firebase FCM + Medium 
+reported 3+ times in a district, Firestore trigger 
+auto-send push notification to all 
+users in that district 
+
+Seed Variety Finder Input crop + district → Groq Groq + static ICAR Medium 
+suggests best ICAR- data 
+recommended seed varieties for 
+that region 
+
+Post-Harvest Guide Select crop → Groq gives Groq Medium 
+storage tips, grading standards, 
+packaging, transport advice 
+
+Mandi Locator Map Map showing all Agmarknet- Google Maps + Medium 
+registered mandis near user with Agmarknet data + 
+distance, phone, timing Firestore 
+
+Voice Input (Hindi) Use Web Speech API (free, Web Speech API Low 
+browser-native) for voice queries (free) 
+in Hindi 
+
+Crop Insurance Input crop, area, district → Static rate tables + Low 
+Calculator calculate PM Fasal Bima Yojana Groq 
+
+premium and expected claim 
+
+Market Price SMS Daily SMS with top 3 commodity Fast2SMS free tier or Low 
+Alert prices for user's district via free MSG91 trial 
+
+SMS service 
+
+ 
+
+  
+
+
+
+4.  All External APIs — Complete Reference 
+
+🌾  IMPORTANT FOR AMAZON Q: All API keys must be stored in environment variables ONLY. 
+Never hardcode in frontend React code. Backend (Node.js) handles all API calls that require 
+keys. 
+
+ 
+
+API Purpose Base URL Auth Method Free Tier Where to Register 
+
+data.gov.in Crop mandi https://api.data.gov.in/resource/9ef84268-d588- API key in query Free, data.gov.in → Login 
+(Agmarknet) prices 465a-a308-a864a43d0070 param: ?api- register → My Account → 
+
+key=YOUR_KEY needed API Keys 
+
+Open-Meteo Weather https://api.open-meteo.com/v1/forecast None — no key Completely No registration 
+forecasts needed free needed 
+
+crop.health Plant disease https://crop.health/api/v1/identification Bearer token in 100 kindwise.com → 
+(Kindwise) detection header free/month Sign Up 
+
+Groq API LLM https://api.groq.com/openai/v1/chat/completions Bearer token Free tier console.groq.com 
+inference for generous 
+all AI features 
+
+Google Maps JS Maps for Loaded via script tag from API key in script $200 free Firebase Console 
+API alerts, mandi maps.googleapis.com URL credit/month → Build → Maps 
+
+locator 
+
+Firebase Auth User Firebase SDK Firebase config Free (Spark firebase.google.com 
+authentication object plan) 
+
+Firebase Firestore Database — Firebase SDK Firebase config Free: 1GB firebase.google.com 
+posts, object storage, 50k 
+reports, users reads/day 
+
+Firebase Storage Image Firebase SDK Firebase config Free: 5GB firebase.google.com 
+storage for object storage 
+disease 
+reports 
+
+soilhealth.dac.gov.in Official soil https://soilhealth.dac.gov.in None (external Free public No registration 
+health cards link) portal needed 
+(link out only) 
+
+ 
+
+4.1  Backend Proxy Routes (Node.js Express) 
+
+The React frontend calls YOUR backend. Your backend calls the govt APIs. This avoids CORS issues. 
+
+Frontend calls Backend route Backend calls Returns 
+
+GET /api/prices Express route: data.gov.in Agmarknet Cleaned JSON array of 
+/api/prices API price records 
+
+POST /api/groq Express route: Groq API AI-generated text string 
+/api/groq 
+
+
+
+POST /api/disease Express route: crop.health API Disease name + 
+/api/disease confidence + details 
+
+GET /api/weather Express route: Open-Meteo (no key Weather JSON 
+/api/weather needed, can call from 
+
+frontend too) 
+
+POST /api/report Express route: Firebase Admin SDK → Success confirmation 
+/api/report Firestore 
+
+ 
+
+4.2  Environment Variables 
+
+Create these files. Never commit them to git. Add to .gitignore. 
+
+Frontend: /frontend/.env VITE_FIREBASE_API_KEY= VITE_FIREBASE_AUTH_DOMAIN= 
+VITE_FIREBASE_PROJECT_ID= VITE_FIREBASE_STORAGE_BUCKET= 
+VITE_FIREBASE_MESSAGING_SENDER_ID= VITE_FIREBASE_APP_ID= 
+VITE_GOOGLE_MAPS_API_KEY= VITE_BACKEND_URL=http://localhost:5000 
+
+ 
+
+Backend: /backend/.env GROQ_API_KEY= DATA_GOV_IN_API_KEY= 
+CROP_HEALTH_API_KEY= 
+FIREBASE_SERVICE_ACCOUNT_KEY_PATH=./serviceAccountKey.json PORT=5000 
+
+ 
+
+  
+
+
+
+5.  Firebase Setup Instructions 
+
+🌾  DO THIS BEFORE GIVING PRD TO AMAZON Q. Complete all steps in this section first, then 
+share the Firebase config values with Amazon Q. 
+
+ 
+
+Step 1: Create Firebase Project 
+
+• Go to console.firebase.google.com 
+
+• Click Add project → Name it: krishimitra 
+
+• Disable Google Analytics (not needed for now) 
+
+• Click Create project 
+
+ 
+
+Step 2: Enable Authentication 
+
+• In Firebase Console → Build → Authentication → Get started 
+
+• Enable Google sign-in provider 
+
+• Enable Phone sign-in provider (for farmers without Google) 
+
+• Set authorised domains: localhost, your-vercel-domain.vercel.app 
+
+ 
+
+Step 3: Create Firestore Database 
+
+• Build → Firestore Database → Create database 
+
+• Start in TEST MODE (we will add rules later) 
+
+• Choose region: asia-south1 (Mumbai — closest to Maharashtra) 
+
+ 
+
+Step 4: Enable Storage 
+
+• Build → Storage → Get started 
+
+• Start in test mode 
+
+• Region: asia-south1 
+
+ 
+
+Step 5: Register Web App 
+
+• Project Overview → Add app → Web (</> icon) 
+
+• App nickname: KrishiMitra Web 
+
+• DO NOT enable Firebase Hosting (we use Vercel) 
+
+• Copy the firebaseConfig object — you will paste it into .env 
+
+ 
+
+
+
+Step 6: Enable Google Maps API 
+
+• Go to console.cloud.google.com (same Google account as Firebase) 
+
+• Select your Firebase project from the dropdown 
+
+• APIs & Services → Library → Search: Maps JavaScript API → Enable 
+
+• APIs & Services → Library → Search: Geocoding API → Enable 
+
+• APIs & Services → Credentials → Create Credentials → API Key 
+
+• Restrict this key: Application restrictions → HTTP referrers → Add your localhost and Vercel 
+domain 
+
+• Restrict this key: API restrictions → Select Maps JavaScript API and Geocoding API only 
+
+ 
+
+Step 7: Generate Service Account for Backend 
+
+• Firebase Console → Project Settings (gear icon) → Service accounts 
+
+• Click Generate new private key → Download JSON 
+
+• Rename file to serviceAccountKey.json 
+
+• Place in /backend/ folder 
+
+• Add serviceAccountKey.json to .gitignore IMMEDIATELY 
+
+ 
+
+Step 8: Firestore Security Rules 
+
+Go to Firestore → Rules → Replace with this: 
+
+rules_version = '2'; service cloud.firestore {   match /databases/{database}/documents {     
+match /users/{userId} {       allow read, write: if request.auth != null && request.auth.uid == 
+userId;     }     match /posts/{postId} {       allow read: if true;       allow create: if request.auth != 
+null;       allow update, delete: if request.auth != null && request.auth.uid == 
+resource.data.authorId;     }     match /posts/{postId}/comments/{commentId} {       allow read: 
+if true;       allow create: if request.auth != null;     }     match /diseaseReports/{reportId} {       
+allow read: if true;       allow create: if request.auth != null;       allow update: if 
+request.auth.token.role == 'officer';     }   } } 
+
+ 
+
+  
+
+
+
+6.  Project Scaffold — What Amazon Q Must Build 
+
+🌾  AMAZON Q: Build exactly this folder structure. Do not invent a different structure. 
+
+ 
+
+krishimitra/ ├── frontend/                     ← React Vite app │   ├── public/ │   ├── src/ │   │   
+├── components/ │   │   │   ├── ui/               ← shadcn/ui auto-generated components │   │   │   
+├── Navbar.jsx │   │   │   ├── Footer.jsx │   │   │   ├── PriceTable.jsx │   │   │   ├── 
+WeatherCard.jsx │   │   │   ├── DiseaseCard.jsx │   │   │   ├── CropCard.jsx │   │   │   ├── 
+AlertMap.jsx │   │   │   └── LoadingSkeleton.jsx │   │   ├── pages/ │   │   │   ├── Home.jsx │   
+│   │   ├── Prices.jsx │   │   │   ├── CropAdvisor.jsx │   │   │   ├── DiseaseDetect.jsx │   │   │   
+├── Weather.jsx │   │   │   ├── Alerts.jsx │   │   │   ├── Community.jsx │   │   │   ├── 
+Schemes.jsx │   │   │   └── Profile.jsx │   │   ├── hooks/ │   │   │   ├── useLocation.js    ← 
+geolocation hook │   │   │   ├── usePrices.js      ← Agmarknet data hook │   │   │   └── 
+useWeather.js     ← Open-Meteo hook │   │   ├── lib/ │   │   │   ├── firebase.js       ← Firebase 
+init │   │   │   ├── api.js            ← axios calls to backend │   │   │   └── utils.js          ← helper 
+functions │   │   ├── context/ │   │   │   └── AuthContext.jsx   ← Firebase Auth context │   │   
+├── App.jsx │   │   ├── main.jsx │   │   └── index.css │   ├── .env                      ← VITE_ env 
+vars │   ├── package.json │   └── vite.config.js │ ├── backend/                      ← Node.js 
+Express server │   ├── routes/ │   │   ├── prices.js             ← Agmarknet proxy │   │   ├── 
+groq.js               ← Groq AI proxy │   │   ├── disease.js            ← crop.health proxy │   │   ├── 
+weather.js            ← Open-Meteo proxy │   │   └── reports.js            ← Firestore writes │   ├── 
+middleware/ │   │   └── errorHandler.js │   ├── serviceAccountKey.json    ← IN .gitignore │   
+├── server.js                 ← Express app entry │   ├── .env                      ← backend env vars │   
+└── package.json │ ├── .gitignore └── README.md 
+
+ 
+
+6.1  Initialisation Commands for Amazon Q to Run 
+
+Amazon Q: Run these commands in order. Do not skip any. 
+
+# 1. Create frontend cd krishimitra npm create vite@latest frontend -- --template react cd 
+frontend npm install  # 2. Install frontend dependencies npm install react-router-dom 
+@tanstack/react-query axios recharts npm install @react-google-maps/api npm install 
+firebase npm install lucide-react  # 3. Install and configure Tailwind CSS npm install -D 
+tailwindcss postcss autoprefixer npx tailwindcss init -p  # 4. Install and configure shadcn/ui 
+npx shadcn-ui@latest init # When prompted: TypeScript = No, Style = Default, Base color = 
+Slate, CSS variables = Yes  # 5. Add required shadcn/ui components npx shadcn-ui@latest 
+add card table button input select badge dialog npx shadcn-ui@latest add skeleton sheet 
+alert-dialog tabs progress npx shadcn-ui@latest add dropdown-menu avatar textarea 
+separator  # 6. Create backend cd ../ mkdir backend && cd backend npm init -y npm install 
+express cors dotenv axios groq-sdk firebase-admin multer npm install -D nodemon 
+
+ 
+
+  
+
+
+
+7.  Design System 
+
+Amazon Q must follow this design system exactly. Do not use default shadcn/ui colors alone. 
+
+ 
+
+Token Value Use 
+
+Primary #2D6A4F Buttons, links, active states 
+
+Primary Dark #1B4332 Headings, navbar background 
+
+Primary Light #D8F3DC Backgrounds, success states 
+
+Accent #E76F00 Price highlights, warnings, CTAs 
+
+Accent Light #FFF3E0 Warning cards, notice backgrounds 
+
+Danger #C62828 Disease alerts, error states 
+
+Danger Light #FFEBEE Error card backgrounds 
+
+Info #1565C0 Info cards, weather 
+
+Info Light #E3F2FD Info card backgrounds 
+
+Surface #F9FAFB Page backgrounds 
+
+Text Primary #111827 Main body text 
+
+Text Secondary #6B7280 Subtitles, meta info 
+
+ 
+
+Typography 
+
+• Font: Inter (Google Fonts) — add to index.html 
+
+• Heading sizes: H1=32px, H2=24px, H3=18px, Body=16px, Small=14px, Tiny=12px 
+
+• Line height: 1.6 for body text, 1.3 for headings 
+
+ 
+
+Component Conventions 
+
+• All cards: rounded-xl shadow-sm border border-gray-100 
+
+• Primary button: bg-[#2D6A4F] hover:bg-[#1B4332] text-white rounded-lg 
+
+• Input fields: border-gray-300 focus:border-[#2D6A4F] focus:ring-[#2D6A4F] 
+
+• Navbar: bg-[#1B4332] text-white fixed top-0 w-full z-50 
+
+• Badge colors: Kharif=green, Rabi=blue, Zaid=orange 
+
+• All pages: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 (account for fixed navbar) 
+
+ 
+
+  
+
+
+
+8.  Firestore Data Schema 
+
+Collection: /users/{uid} 
+
+{   uid: string,   displayName: string,   email: string,   phone: string,   role: "farmer" | "officer",         
+// officer role set manually in Firebase   state: string,   district: string,   taluka: string,   
+landSizeAcres: number,   soilType: string,   primaryCrops: string[],   language: "en" | "hi" | 
+"mr",   bookmarkedSchemes: string[],   priceAlerts: [{ commodity: string, price: number, 
+district: string }],   createdAt: Timestamp } 
+
+ 
+
+Collection: /diseaseReports/{reportId} 
+
+{   reportId: string (auto),   farmerUid: string,   farmerName: string,   farmerPhone: string,   
+village: string,   district: string,   state: string,   lat: number,   lon: number,   cropType: string,   
+diseaseName: string,   confidenceScore: number,   severity: "low" | "medium" | "high",   
+imageUrl: string,           // Firebase Storage URL   groqReport: string,         // Full Groq-
+generated diagnosis text   status: "new" | "reviewing" | "contained",   officerNotes: string,   
+createdAt: Timestamp,   updatedAt: Timestamp } 
+
+ 
+
+Collection: /posts/{postId} 
+
+{   postId: string (auto),   title: string,   body: string,   authorId: string,   authorName: string,   
+authorAvatar: string,   category: "crop-tips" | "disease-help" | "market" | "equipment" | 
+"schemes",   upvotes: number,   upvotedBy: string[],        // array of uid   commentCount: 
+number,   imageUrl: string | null,   tags: string[],   createdAt: Timestamp } 
+
+ 
+
+  
+
+
+
+9.  Build Order for Amazon Q 
+
+🌾  AMAZON Q: Build in exactly this order. Complete each phase fully before moving to the 
+next. If something does not work, fix it before proceeding. 
+
+ 
+
+Phase Tasks Test Criteria 
+
+Phase 0 Run all initialisation commands from npm run dev works. All routes navigate 
+Setup Section 6.1. Create folder structure. Set without errors. Navbar shows on all 
+
+up Tailwind. Configure shadcn/ui. Create pages. 
+.env files with placeholder values. Set up 
+React Router with all routes. Create 
+empty page components. Create Navbar 
+and Footer. 
+
+Phase 1 Create lib/firebase.js with Firebase init. User can sign in with Google. User data 
+Auth + Create AuthContext.jsx with Google sign- saves to /users/{uid}. Protected pages 
+Firebase in and phone sign-in. Create Login redirect to login. 
+
+page/modal. Add protected route wrapper. 
+Test Firestore read/write. 
+
+Phase 2 Create Node.js Express server. Add all 5 All backend routes return valid data. No 
+Backend routes (prices, groq, disease, weather, CORS errors from frontend. 
+
+reports). Add CORS middleware. Test 
+each route with Postman or curl. Deploy 
+to Render.com free tier. 
+
+Phase 3 Build Prices.jsx with filter bar, data table, Page loads prices for Maharashtra. Groq 
+Prices Page Recharts trend chart, Groq insight card. insight shows below table. Chart updates 
+
+Connect to backend /api/prices. Add on commodity change. 
+loading skeletons. Add error handling. 
+
+Phase 4 Build Weather.jsx. Build CropAdvisor.jsx Weather shows for user location. Crop 
+Weather + with 4-step wizard. Integrate Open-Meteo. Advisor shows 5 suggestions based on 
+Crop Advisor Integrate Groq for both pages. soil inputs. 
+
+Phase 5 Build DiseaseDetect.jsx. Image upload Image upload, disease detected, Groq 
+Disease works. crop.health API integration. Groq report shows, report saves to Firestore. 
+Detect report generation. Alert button saves to 
+
+Firestore. 
+
+Phase 6 Build Alerts.jsx with Google Maps. Build Map shows disease pins from Firestore. 
+Alerts Map + Community.jsx with posts, comments, Posts can be created and commented 
+Community upvotes. on. 
+
+Phase 7 Build Schemes.jsx with static data. Build Schemes searchable. Profile saves to 
+Schemes + Profile.jsx with farm details form and price Firestore. 
+Profile alert setup. 
+
+Phase 8 Add loading states everywhere. Add error No layout breaks on mobile. All errors 
+Polish boundaries. Make fully mobile responsive. handled gracefully. 
+
+Add language support structure. Final UI 
+polish. 
+
+ 
+
+
+
+  
+
+
+
+10.  Key Instructions for Amazon Q 
+
+🌾  Read this section first before starting any code. 
+
+ 
+
+10.1  What Amazon Q Must NOT Do 
+
+• Do NOT use class components. Use functional components with hooks only. 
+
+• Do NOT use inline styles. Use Tailwind classes only. 
+
+• Do NOT call government APIs (Agmarknet, crop.health) directly from React frontend. ALWAYS 
+proxy through backend. 
+
+• Do NOT hardcode any API key in any .jsx or .js frontend file. 
+
+• Do NOT install paid packages or APIs without asking first. 
+
+• Do NOT use any other CSS framework (no Bootstrap, no styled-components). 
+
+• Do NOT change the colour scheme from Section 7 without asking. 
+
+• Do NOT skip error handling. Every API call needs a try/catch and an error state. 
+
+• Do NOT use TypeScript. JavaScript only (you are learning React, TypeScript adds complexity 
+now). 
+
+ 
+
+10.2  What Amazon Q MUST Do 
+
+• Use React hooks: useState, useEffect, useContext, custom hooks in /hooks/ folder 
+
+• Use React Router v6 for all navigation. Use <Link> not <a> for internal links. 
+
+• Every page must have a loading state (shadcn/ui Skeleton) and an error state (shadcn/ui Alert) 
+
+• Mobile responsive: test every component at 375px width minimum 
+
+• Use shadcn/ui components as the base — do not build UI from scratch when shadcn has it 
+
+• All Groq calls must include a clear system prompt that says: 'You are KrishiMitra, an AI assistant 
+for Indian farmers. Always be helpful, practical, and specific to India. Keep responses concise 
+and easy to understand.' 
+
+• Use @tanstack/react-query (react-query) for all data fetching — it handles caching, loading 
+states, and refetching automatically 
+
+• All dates must be shown in DD/MM/YYYY format (Indian standard) 
+
+• All prices must be shown in Indian number format (₹ symbol, lakhs/crores notation) 
+
+ 
+
+10.3  When Amazon Q is Stuck 
+
+If Amazon Q cannot find a data.gov.in API key or the crop.health API is unavailable, use these 
+fallbacks: 
+
+• Agmarknet fallback: Use static mock data for testing (5-10 sample records). Comment clearly: // 
+MOCK DATA - Replace with real API call when data.gov.in key is available 
+
+• Disease detection fallback: Use Groq vision model as primary and skip crop.health for now 
+
+
+
+• Google Maps fallback: Use a simple Leaflet.js map (free, no key needed) as placeholder 
+
+ 
+
+10.4  Prompt to Start Amazon Q 
+
+Copy this prompt and give it to Amazon Q after sharing this document:  "I am giving you a 
+PRD document for KrishiMitra, an AI agriculture web app. Read the entire PRD document 
+carefully. Start with Phase 0 from Section 9 — project setup and scaffold. Create the exact 
+folder structure from Section 6. Use the tech stack from Section 5. After each phase, tell me 
+what was built and what needs to be tested before we move on. My Firebase is not yet 
+configured — I will give you the Firebase config values after we complete setup. For now, use 
+placeholder values in .env. Start now." 
+
+ 
+
+  
+
+
+
+11.  Deployment Plan 
+
+Service What to Deploy Free Tier How 
+
+Vercel Frontend (React Vite) Unlimited for personal Connect GitHub repo → Vercel 
+projects auto-deploys. Set VITE_ env 
+
+vars in Vercel dashboard. 
+
+Render.com Backend (Node.js Free: 750 hrs/month New Web Service → Connect 
+Express) (sleeps after 15 min GitHub → Build: npm install → 
+
+inactivity) Start: node server.js. Set env 
+vars in Render dashboard. 
+
+Firebase Auth + Firestore + Free Spark plan Already configured per Section 
+Storage sufficient for 5. No separate deployment. 
+
+hackathon/college 
+project 
+
+GitHub Source code Free for public/private git init → add remote → push. 
+repos Never commit .env or 
+
+serviceAccountKey.json 
+
+ 
+
+🌾  Render free tier sleeps after 15 minutes of no traffic. First request after sleep takes ~30 
+seconds. Acceptable for a college project. If demo is live, keep a free cron job (cron-job.org) 
+that pings your backend URL every 10 minutes to prevent sleep. 
+
+ 
+
+  
+
+
+
+12.  App Naming & Branding 
+
+Element Value 
+
+App Name KrishiMitra (ककककककककक) — means 'Farming Friend' in 
+Hindi/Marathi 
+
+Tagline Smart farming starts here | कक ककककक कक कककककक कककक 
+
+Logo concept Green leaf with a circuit pattern — represents AI + Agriculture 
+
+Primary audience Small and medium farmers in Maharashtra, India 
+
+Domain suggestion krishimitra.vercel.app (free on Vercel) 
+
+College hackathon category AI for Agriculture & Rural Innovation — matches your competition 
+image 
+
+ 
+
+ 
+
+End of PRD — KrishiMitra v1.0 
+
+Prepared by Claude (Anthropic) for Durgesh | Anjivani College of Engineering, Kopargaon
