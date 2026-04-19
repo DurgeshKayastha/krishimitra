@@ -36,6 +36,7 @@ export default function DiseaseDetect() {
 
   const downloadPDF = () => {
     const pdf = new jsPDF()
+    pdf.setFont('helvetica')
     const pageWidth = pdf.internal.pageSize.getWidth()
     const margin = 15
     let y = 20
@@ -46,7 +47,7 @@ export default function DiseaseDetect() {
     pdf.setTextColor(255, 255, 255)
     pdf.setFontSize(11)
     pdf.setFont('helvetica', 'bold')
-    pdf.text('KrishiMitra — Disease Detection Report', margin, 9)
+    pdf.text('KrishiMitra - Disease Detection Report', margin, 9)
 
     // date
     pdf.setFontSize(8)
@@ -120,7 +121,7 @@ export default function DiseaseDetect() {
     // footer
     pdf.setFontSize(7)
     pdf.setTextColor(150, 150, 150)
-    pdf.text('KrishiMitra — AI for Agriculture | Anjivani College of Engineering, Kopargaon', pageWidth / 2, 290, { align: 'center' })
+    pdf.text('KrishiMitra - AI for Agriculture | Anjivani College of Engineering, Kopargaon', pageWidth / 2, 290, { align: 'center' })
 
     pdf.save(`krishimitra-disease-report-${Date.now()}.pdf`)
   }

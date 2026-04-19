@@ -136,12 +136,12 @@ export default function Navbar({ onLoginClick }) {
           {user && (
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild className="lg:hidden">
-                <button
-                  className="lg:hidden text-white hover:bg-[#2D6A4F] p-2 rounded-md"
+                <div
+                  className="lg:hidden text-white hover:bg-[#2D6A4F] p-2 rounded-md cursor-pointer"
                   onClick={() => setOpen(true)}
                 >
                   <Menu className="w-5 h-5" />
-                </button>
+                </div>
               </SheetTrigger>
               <SheetContent side="right" className="bg-[#1B4332] text-white border-[#2D6A4F] w-64">
                 <div className="flex flex-col gap-2 mt-8">

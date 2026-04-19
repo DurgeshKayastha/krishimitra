@@ -3,10 +3,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useLocation } from '@/hooks/useLocation'
 import { useWeather } from '@/hooks/useWeather'
 import { postGroq } from '@/lib/api'
-import { CloudSun, Droplets, Wind, Thermometer, AlertTriangle, CalendarDays } from 'lucide-react'
+import { CloudSun, Droplets, Wind, Thermometer, AlertTriangle, CalendarDays, Download } from 'lucide-react'
+import jsPDF from 'jspdf'
 
 const WMO_CODES = {
   0: { label: 'Clear', icon: '☀️' },
@@ -31,20 +33,57 @@ export default function Weather() {
   const { data, isLoading, isError } = useWeather(lat, lon)
   const [calendar, setCalendar] = useState('')
   const [calLoading, setCalLoading] = useState(false)
+  const [userLanguage, setUserLanguage] = useState('en')
 
   useEffect(() => {
     if (!data?.daily) return
     const fetchCalendar = async () => {
       setCalLoading(true)
+      
+      // Store user's current language
+      const currentLang = document.documentElement.lang || 'en'
+      setUserLanguage(currentLang)
+      
+      // Switch to English before fetching
+      if (currentLang !== 'en') {
+        const select = document.querySelector('.goog-te-combo')
+        if (select) {
+          select.value = 'en'
+          select.dispatchEvent(new Event('change'))
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+      
       try {
         const summary = data.daily.time.map((date, i) => {
           const info = getWeatherInfo(data.daily.weathercode[i])
           return `${date}: ${info.label}, max ${data.daily.temperature_2m_max[i]}°C, rain ${data.daily.precipitation_sum[i]}mm`
         }).join('; ')
         const { data: res } = await postGroq({
-          messages: [{ role: 'user', content: `Given this 7-day weather forecast for a farmer in Maharashtra: ${summary}. Generate a day-by-day farming activity calendar with 1-2 practical suggestions per day. Keep each day's suggestion to one short sentence.` }],
+          messages: [{ role: 'user', content: `Given this 7-day weather forecast for a farmer in Maharashtra: ${summary}. Generate a day-by-day farming activity calendar with 1-2 practical suggestions per day. Format as:
+
+Day 1 (Date):
+- Activity suggestion
+
+Day 2 (Date):
+- Activity suggestion
+
+Keep each suggestion to one short sentence.` }],
         })
         setCalendar(res.text)
+        
+        // Wait for DOM to stabilize
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        
+        // Switch back to user's language
+        if (currentLang !== 'en') {
+          const select = document.querySelector('.goog-te-combo')
+          if (select) {
+            select.value = currentLang
+            select.dispatchEvent(new Event('change'))
+            await new Promise(resolve => setTimeout(resolve, 2000))
+          }
+        }
       } catch {
         setCalendar('')
       } finally {
@@ -70,6 +109,160 @@ export default function Weather() {
   })) || []
 
   const hasHeavyRain = daily?.precipitation_sum?.some(r => r > 30)
+
+  const downloadCalendarPDF = () => {
+    if (!calendar || !data?.daily) return
+
+    const doc = new jsPDF()
+    doc.setFont('helvetica')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 15
+    const lineHeight = 6
+    let y = 20
+
+    // Header
+    doc.setFontSize(20)
+    doc.setTextColor(29, 106, 79)
+    doc.text('7-Day Farming Calendar', margin, y)
+    y += 8
+
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { dateStyle: 'long' })}`, margin, y)
+    y += 10
+
+    // Weather Summary Box
+    doc.setFillColor(240, 253, 244)
+    doc.rect(margin, y, pageWidth - 2 * margin, 30, 'F')
+    doc.setFontSize(9)
+    doc.setTextColor(60, 60, 60)
+    y += 6
+
+    doc.text('📍 Location: Based on your GPS coordinates', margin + 3, y)
+    y += 5
+    doc.text(`🌡️ Current Temp: ${currentTemp}°C | 💧 Humidity: ${currentHumidity}%`, margin + 3, y)
+    y += 5
+    doc.text(`💨 Wind: ${currentWind} km/h | ☀️ UV Index: ${currentUV}`, margin + 3, y)
+    y += 5
+
+    // Total rainfall
+    const totalRain = data.daily.precipitation_sum.reduce((a, b) => a + b, 0).toFixed(1)
+    doc.text(`🌧️ Total Expected Rainfall (7 days): ${totalRain}mm`, margin + 3, y)
+    y += 10
+
+    // Divider
+    doc.setDrawColor(45, 106, 79)
+    doc.setLineWidth(0.5)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 8
+
+    // Calendar Content
+    doc.setFontSize(9)
+    doc.setTextColor(0, 0, 0)
+
+    const sections = calendar.split('\n\n')
+    sections.forEach((section, idx) => {
+      const lines = section.split('\n').filter(l => l.trim())
+      if (lines.length === 0) return
+
+      lines.forEach((line, lineIdx) => {
+        if (y > pageHeight - 20) {
+          doc.addPage()
+          y = 20
+        }
+
+        const trimmed = line.trim()
+
+        // Day headers
+        if (trimmed.toLowerCase().startsWith('day') || /^\d+\./.test(trimmed)) {
+          if (lineIdx > 0) y += 3 // Space before new day
+          doc.setFillColor(45, 106, 79)
+          doc.rect(margin, y - 4, pageWidth - 2 * margin, 8, 'F')
+          doc.setTextColor(255, 255, 255)
+          doc.setFont(undefined, 'bold')
+          doc.setFontSize(10)
+          doc.text(trimmed.replace(/^[-•]\s*/, ''), margin + 3, y + 1)
+          y += 10
+          doc.setTextColor(0, 0, 0)
+          doc.setFont(undefined, 'normal')
+          doc.setFontSize(9)
+        }
+        // Activities
+        else {
+          const cleanLine = trimmed.replace(/^[-•]\s*/, '')
+          const wrappedLines = doc.splitTextToSize(cleanLine, pageWidth - 2 * margin - 8)
+          wrappedLines.forEach((wLine, wIdx) => {
+            if (y > pageHeight - 20) {
+              doc.addPage()
+              y = 20
+            }
+            if (wIdx === 0) {
+              doc.text('•', margin + 4, y)
+            }
+            doc.text(wLine, margin + 8, y)
+            y += lineHeight
+          })
+        }
+      })
+
+      y += 2 // Space between sections
+    })
+
+    // Weather forecast table
+    if (y > pageHeight - 60) {
+      doc.addPage()
+      y = 20
+    }
+
+    y += 5
+    doc.setFontSize(11)
+    doc.setFont(undefined, 'bold')
+    doc.setTextColor(29, 106, 79)
+    doc.text('7-Day Weather Forecast', margin, y)
+    y += 8
+    doc.setFont(undefined, 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+
+    // Table header
+    doc.setFillColor(216, 243, 220)
+    doc.rect(margin, y - 4, pageWidth - 2 * margin, 6, 'F')
+    doc.text('Day', margin + 2, y)
+    doc.text('Weather', margin + 25, y)
+    doc.text('Max/Min', margin + 70, y)
+    doc.text('Rain', margin + 100, y)
+    y += 6
+
+    // Table rows
+    data.daily.time.forEach((date, i) => {
+      if (y > pageHeight - 20) {
+        doc.addPage()
+        y = 20
+      }
+
+      const info = getWeatherInfo(data.daily.weathercode[i])
+      const dayName = DAYS[new Date(date).getDay()]
+      const dateStr = new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+
+      doc.text(`${dayName}, ${dateStr}`, margin + 2, y)
+      doc.text(info.label, margin + 25, y)
+      doc.text(`${data.daily.temperature_2m_max[i]}°C / ${data.daily.temperature_2m_min[i]}°C`, margin + 70, y)
+      doc.text(`${data.daily.precipitation_sum[i]}mm`, margin + 100, y)
+      y += 5
+    })
+
+    // Footer
+    const totalPages = doc.internal.pages.length - 1
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(150, 150, 150)
+      doc.text(`KrishiMitra - Weather & Farming Calendar | Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
+    }
+
+    doc.save(`KrishiMitra_Farming_Calendar_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
 
   if (locLoading || isLoading) return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
@@ -167,17 +360,51 @@ export default function Weather() {
         {/* Groq farming calendar */}
         <Card className="rounded-xl shadow-sm border border-gray-100 bg-[#f0fdf4]">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <CalendarDays className="w-4 h-4 text-[#2D6A4F]" />
-              <p className="text-sm font-semibold text-[#1B4332]">AI Farming Calendar</p>
-              <Badge className="bg-[#D8F3DC] text-[#2D6A4F] text-xs">Groq AI</Badge>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-[#2D6A4F]" />
+                <p className="text-sm font-semibold text-[#1B4332]">AI Farming Calendar</p>
+                <Badge className="bg-[#D8F3DC] text-[#2D6A4F] text-xs">Groq AI</Badge>
+              </div>
+              {!calLoading && calendar && (
+                <Button onClick={downloadCalendarPDF} size="sm" className="bg-[#2D6A4F] hover:bg-[#1B4332] text-white">
+                  <Download className="w-3.5 h-3.5 mr-1" /> PDF
+                </Button>
+              )}
             </div>
             {calLoading ? (
               <div className="space-y-2">
                 {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
               </div>
             ) : calendar ? (
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line"><span translate="no">{calendar}</span></p>
+              <div className="space-y-2">
+                {calendar.split('\n\n').map((section, idx) => {
+                  const lines = section.split('\n').filter(l => l.trim())
+                  if (lines.length === 0) return null
+                  
+                  return (
+                    <div key={idx} className="border-l-2 border-[#2D6A4F] pl-3 py-1">
+                      {lines.map((line, lineIdx) => {
+                        const trimmed = line.trim()
+                        // Day headers
+                        if (trimmed.toLowerCase().startsWith('day') || /^\d+\./.test(trimmed)) {
+                          return (
+                            <p key={lineIdx} className="font-semibold text-[#1B4332] text-sm mb-1">
+                              {trimmed.replace(/^[-•]\s*/, '')}
+                            </p>
+                          )
+                        }
+                        // Activities (bullet points or regular text)
+                        return (
+                          <p key={lineIdx} className="text-sm text-gray-700 leading-relaxed">
+                            {trimmed.replace(/^[-•]\s*/, '• ')}
+                          </p>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
             ) : (
               <p className="text-sm text-gray-400">Calendar will appear after weather loads.</p>
             )}
