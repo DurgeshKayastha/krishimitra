@@ -122,33 +122,34 @@ Keep each suggestion to one short sentence.` }],
     let y = 20
 
     // Header
-    doc.setFontSize(20)
+    doc.setFontSize(22)
     doc.setTextColor(29, 106, 79)
     doc.text('7-Day Farming Calendar', margin, y)
-    y += 8
+    y += 10
 
-    doc.setFontSize(10)
+    doc.setFontSize(9)
     doc.setTextColor(100, 100, 100)
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { dateStyle: 'long' })}`, margin, y)
+    doc.text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, margin, y)
     y += 10
 
     // Weather Summary Box
     doc.setFillColor(240, 253, 244)
-    doc.rect(margin, y, pageWidth - 2 * margin, 30, 'F')
+    doc.rect(margin, y, pageWidth - 2 * margin, 28, 'F')
+    doc.setDrawColor(45, 106, 79)
+    doc.setLineWidth(0.3)
+    doc.rect(margin, y, pageWidth - 2 * margin, 28, 'S')
+    
     doc.setFontSize(9)
     doc.setTextColor(60, 60, 60)
     y += 6
 
-    doc.text('📍 Location: Based on your GPS coordinates', margin + 3, y)
+    doc.text('Current Weather Conditions', margin + 3, y)
     y += 5
-    doc.text(`🌡️ Current Temp: ${currentTemp}°C | 💧 Humidity: ${currentHumidity}%`, margin + 3, y)
-    y += 5
-    doc.text(`💨 Wind: ${currentWind} km/h | ☀️ UV Index: ${currentUV}`, margin + 3, y)
+    doc.text(`Temperature: ${currentTemp}°C  |  Humidity: ${currentHumidity}%  |  Wind: ${currentWind} km/h  |  UV Index: ${currentUV}`, margin + 3, y)
     y += 5
 
-    // Total rainfall
     const totalRain = data.daily.precipitation_sum.reduce((a, b) => a + b, 0).toFixed(1)
-    doc.text(`🌧️ Total Expected Rainfall (7 days): ${totalRain}mm`, margin + 3, y)
+    doc.text(`Expected Rainfall (7 days): ${totalRain}mm`, margin + 3, y)
     y += 10
 
     // Divider
@@ -157,12 +158,20 @@ Keep each suggestion to one short sentence.` }],
     doc.line(margin, y, pageWidth - margin, y)
     y += 8
 
+    // Section Title
+    doc.setFontSize(12)
+    doc.setTextColor(29, 106, 79)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Daily Farming Activities', margin, y)
+    y += 8
+    doc.setFont('helvetica', 'normal')
+
     // Calendar Content
     doc.setFontSize(9)
     doc.setTextColor(0, 0, 0)
 
     const sections = calendar.split('\n\n')
-    sections.forEach((section, idx) => {
+    sections.forEach((section) => {
       const lines = section.split('\n').filter(l => l.trim())
       if (lines.length === 0) return
 
@@ -174,22 +183,20 @@ Keep each suggestion to one short sentence.` }],
 
         const trimmed = line.trim()
 
-        // Day headers
         if (trimmed.toLowerCase().startsWith('day') || /^\d+\./.test(trimmed)) {
-          if (lineIdx > 0) y += 3 // Space before new day
+          if (lineIdx > 0) y += 3
           doc.setFillColor(45, 106, 79)
           doc.rect(margin, y - 4, pageWidth - 2 * margin, 8, 'F')
           doc.setTextColor(255, 255, 255)
-          doc.setFont(undefined, 'bold')
+          doc.setFont('helvetica', 'bold')
           doc.setFontSize(10)
-          doc.text(trimmed.replace(/^[-•]\s*/, ''), margin + 3, y + 1)
+          const cleanHeader = trimmed.replace(/^[-•]\s*/, '')
+          doc.text(cleanHeader, margin + 3, y + 1)
           y += 10
           doc.setTextColor(0, 0, 0)
-          doc.setFont(undefined, 'normal')
+          doc.setFont('helvetica', 'normal')
           doc.setFontSize(9)
-        }
-        // Activities
-        else {
+        } else {
           const cleanLine = trimmed.replace(/^[-•]\s*/, '')
           const wrappedLines = doc.splitTextToSize(cleanLine, pageWidth - 2 * margin - 8)
           wrappedLines.forEach((wLine, wIdx) => {
@@ -198,7 +205,7 @@ Keep each suggestion to one short sentence.` }],
               y = 20
             }
             if (wIdx === 0) {
-              doc.text('•', margin + 4, y)
+              doc.text('>', margin + 4, y)
             }
             doc.text(wLine, margin + 8, y)
             y += lineHeight
@@ -206,33 +213,35 @@ Keep each suggestion to one short sentence.` }],
         }
       })
 
-      y += 2 // Space between sections
+      y += 2
     })
 
     // Weather forecast table
-    if (y > pageHeight - 60) {
+    if (y > pageHeight - 70) {
       doc.addPage()
       y = 20
     }
 
-    y += 5
-    doc.setFontSize(11)
-    doc.setFont(undefined, 'bold')
+    y += 8
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(29, 106, 79)
     doc.text('7-Day Weather Forecast', margin, y)
     y += 8
-    doc.setFont(undefined, 'normal')
-    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
     doc.setTextColor(0, 0, 0)
 
     // Table header
     doc.setFillColor(216, 243, 220)
-    doc.rect(margin, y - 4, pageWidth - 2 * margin, 6, 'F')
-    doc.text('Day', margin + 2, y)
-    doc.text('Weather', margin + 25, y)
-    doc.text('Max/Min', margin + 70, y)
-    doc.text('Rain', margin + 100, y)
-    y += 6
+    doc.rect(margin, y - 4, pageWidth - 2 * margin, 7, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.text('Date', margin + 2, y)
+    doc.text('Condition', margin + 35, y)
+    doc.text('Temperature', margin + 75, y)
+    doc.text('Rain (mm)', margin + 115, y)
+    y += 7
+    doc.setFont('helvetica', 'normal')
 
     // Table rows
     data.daily.time.forEach((date, i) => {
@@ -245,11 +254,16 @@ Keep each suggestion to one short sentence.` }],
       const dayName = DAYS[new Date(date).getDay()]
       const dateStr = new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
 
+      if (i % 2 === 0) {
+        doc.setFillColor(250, 250, 250)
+        doc.rect(margin, y - 4, pageWidth - 2 * margin, 6, 'F')
+      }
+
       doc.text(`${dayName}, ${dateStr}`, margin + 2, y)
-      doc.text(info.label, margin + 25, y)
-      doc.text(`${data.daily.temperature_2m_max[i]}°C / ${data.daily.temperature_2m_min[i]}°C`, margin + 70, y)
-      doc.text(`${data.daily.precipitation_sum[i]}mm`, margin + 100, y)
-      y += 5
+      doc.text(info.label, margin + 35, y)
+      doc.text(`${data.daily.temperature_2m_max[i]}°C / ${data.daily.temperature_2m_min[i]}°C`, margin + 75, y)
+      doc.text(`${data.daily.precipitation_sum[i]}`, margin + 115, y)
+      y += 6
     })
 
     // Footer
@@ -258,7 +272,8 @@ Keep each suggestion to one short sentence.` }],
       doc.setPage(i)
       doc.setFontSize(8)
       doc.setTextColor(150, 150, 150)
-      doc.text(`KrishiMitra - Weather & Farming Calendar | Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
+      doc.text('KrishiMitra - Your Farming Companion', margin, pageHeight - 10)
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 20, pageHeight - 10)
     }
 
     doc.save(`KrishiMitra_Farming_Calendar_${new Date().toISOString().split('T')[0]}.pdf`)
