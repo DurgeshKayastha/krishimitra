@@ -1,7 +1,18 @@
+# Dependencies
 node_modules/
+
+# Environment variables (contains sensitive API keys)
 .env
 frontend/.env
 backend/.env
+
+# Firebase credentials
 backend/serviceAccountKey.json
+
+# Build outputs
 dist/
 .dist/
+
+# OS specific files
+.DS_Store
+Thumbs.db
