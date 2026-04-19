@@ -191,7 +191,7 @@ export default function CropAdvisor() {
                 </div>
               ) : (
                 <div className="prose prose-sm max-w-none mt-2">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">{result}</pre>
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans"><span translate="no">{result}</span></pre>
                 </div>
               )}
               <Button onClick={() => { setStep(0); setResult('') }} variant="outline"

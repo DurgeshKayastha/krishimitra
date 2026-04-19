@@ -177,7 +177,7 @@ export default function Weather() {
                 {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
               </div>
             ) : calendar ? (
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{calendar}</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line"><span translate="no">{calendar}</span></p>
             ) : (
               <p className="text-sm text-gray-400">Calendar will appear after weather loads.</p>
             )}

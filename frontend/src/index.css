@@ -3,6 +3,17 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* Hide Google Translate toolbar but keep translation working */
+.goog-te-banner-frame { display: none !important; }
+#goog-gt-tt { display: none !important; }
+.goog-tooltip { display: none !important; }
+.goog-text-highlight { background: none !important; box-shadow: none !important; }
+body { top: 0 !important; }
+
+/* Hide only the visible toolbar widget, NOT the hidden select */
+.skiptranslate > iframe { display: none !important; }
+.goog-te-gadget { height: 0 !important; overflow: hidden !important; }
+
 @custom-variant dark (&:is(.dark *));
 
 @layer base {

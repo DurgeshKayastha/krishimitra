@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, Leaf } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ const navLinks = [
   { to: '/alerts', label: 'Alerts' },
   { to: '/community', label: 'Community' },
   { to: '/schemes', label: 'Schemes' },
+  { to: '/voice-assistant', label: '🎙 Assistant' },
 ]
 
 const LANGUAGES = [
@@ -34,9 +35,29 @@ export default function Navbar({ onLoginClick }) {
   const [lang, setLang] = useState(() => localStorage.getItem('km_lang') || 'en')
   const [open, setOpen] = useState(false)
 
+  useEffect(() => {
+    const saved = localStorage.getItem('km_lang')
+    if (saved && saved !== 'en') {
+      const interval = setInterval(() => {
+        const select = document.querySelector('.goog-te-combo')
+        if (select) {
+          select.value = saved
+          select.dispatchEvent(new Event('change'))
+          clearInterval(interval)
+        }
+      }, 500)
+      setTimeout(() => clearInterval(interval), 5000)
+    }
+  }, [])
+
   const handleLang = (code) => {
     setLang(code)
     localStorage.setItem('km_lang', code)
+    const select = document.querySelector('.goog-te-combo')
+    if (select) {
+      select.value = code
+      select.dispatchEvent(new Event('change'))
+    }
   }
 
   const isActive = (to) => location.pathname === to

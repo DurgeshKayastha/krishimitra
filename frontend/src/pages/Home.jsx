@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
 import LoginModal from '@/components/LoginModal'
 import {
-  TrendingUp, Sprout, Bug, CloudSun, Bell, Users, BookOpen, User, Lock
+  TrendingUp, Sprout, Bug, CloudSun, Bell, Users, BookOpen, User, Lock, Mic
 } from 'lucide-react'
 
 const features = [
@@ -79,6 +79,15 @@ const features = [
     color: 'text-[#C62828]',
     bg: 'bg-[#FFEBEE]',
     preview: 'Save your farm details, track disease reports you submitted, and set price alerts for your crops.',
+  },
+  {
+    icon: Mic,
+    title: 'Voice Assistant',
+    desc: 'Ask farming questions by voice in Hindi, Marathi or English',
+    to: '/voice-assistant',
+    color: 'text-[#2D6A4F]',
+    bg: 'bg-[#D8F3DC]',
+    preview: 'Speak your question and get instant AI answers with internet search. Works in Hindi, Marathi and English.',
   },
 ]
 

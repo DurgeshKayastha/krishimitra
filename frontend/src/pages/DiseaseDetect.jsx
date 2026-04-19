@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { postDisease, postGroq, postReport } from '@/lib/api'
+import { postDisease, postGroq } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { useLocation } from '@/hooks/useLocation'
 import { Upload, Camera, Bug, AlertTriangle, CheckCircle, Loader2, FileDown } from 'lucide-react'
@@ -20,8 +20,9 @@ const SEVERITY_COLORS = {
 
 export default function DiseaseDetect() {
   const { user } = useAuth()
-  const { lat, lon } = useLocation()
+  const { lat, lon, loading: locationLoading } = useLocation()
   const fileRef = useRef()
+  const uploadCountRef = useRef(0)
 
   const [image, setImage] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -127,8 +128,12 @@ export default function DiseaseDetect() {
   const handleFile = (file) => {
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB'); return }
+    
+    uploadCountRef.current += 1
+    const preview = URL.createObjectURL(file)
+    
     setImage(file)
-    setImagePreview(URL.createObjectURL(file))
+    setImagePreview(preview)
     setResult(null)
     setGroqReport('')
     setError('')
@@ -145,6 +150,21 @@ export default function DiseaseDetect() {
     setError('')
     setResult(null)
     setGroqReport('')
+
+    // Save current language and force to English BEFORE any React updates
+    const savedLang = localStorage.getItem('km_lang') || 'en'
+    const wasTranslated = savedLang !== 'en'
+    
+    if (wasTranslated) {
+      // Switch to English immediately
+      const select = document.querySelector('.goog-te-combo')
+      if (select) {
+        select.value = 'en'
+        select.dispatchEvent(new Event('change'))
+      }
+      // Wait longer for Google Translate to finish switching to English
+      await new Promise(resolve => setTimeout(resolve, 1500))
+    }
 
     try {
       // Step 1 — detect disease
@@ -203,16 +223,56 @@ Keep it simple and practical for an Indian farmer.`,
       history.unshift({ diseaseName, cropType, date: new Date().toLocaleDateString('en-IN'), imagePreview })
       localStorage.setItem('km_disease_history', JSON.stringify(history.slice(0, 5)))
 
+      // CRITICAL: Wait for React to finish ALL renders before translating back
+      // Wait longer to ensure DOM is completely stable
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Now translate back to user's language
+      if (wasTranslated) {
+        const select = document.querySelector('.goog-te-combo')
+        if (select) {
+          select.value = savedLang
+          select.dispatchEvent(new Event('change'))
+        }
+        
+        // Wait for translation to complete and verify it worked
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Double-check: if page didn't translate, try again
+        const htmlEl = document.documentElement
+        const isTranslated = htmlEl.classList.contains('translated-ltr') || htmlEl.classList.contains('translated-rtl')
+        if (!isTranslated && select) {
+          select.value = savedLang
+          select.dispatchEvent(new Event('change'))
+        }
+      }
+
     } catch (e) {
       setError('Detection failed. Please try again.')
       setStatus('')
+      
+      // Restore language even on error
+      if (wasTranslated) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        const select = document.querySelector('.goog-te-combo')
+        if (select) {
+          select.value = savedLang
+          select.dispatchEvent(new Event('change'))
+        }
+      }
     }
   }
 
   const submitReport = async () => {
+    if (!lat || !lon || lat === 0) {
+      setError('Location required to submit report. Please enable location access.')
+      return
+    }
     setReporting(true)
     try {
-      await postReport({
+      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      await addDoc(collection(db, 'diseaseReports'), {
         farmerUid: user?.uid || 'anonymous',
         farmerName: user?.displayName || 'Anonymous',
         farmerPhone: user?.phoneNumber || '',
@@ -221,9 +281,11 @@ Keep it simple and practical for an Indian farmer.`,
         confidenceScore: result?.confidence || 0,
         severity: result?.confidence > 70 ? 'high' : result?.confidence > 40 ? 'medium' : 'low',
         groqReport,
-        lat: lat || 0,
-        lon: lon || 0,
+        lat,
+        lon,
         status: 'new',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       })
       setReported(true)
     } catch {
@@ -266,7 +328,7 @@ Keep it simple and practical for an Indian farmer.`,
                 }`}
               >
                 {imagePreview ? (
-                  <img src={imagePreview} alt="crop" className="max-h-48 mx-auto rounded-lg object-contain" />
+                  <img src={imagePreview} alt="crop" className="max-h-48 mx-auto rounded-lg object-contain" key={`img-${uploadCountRef.current}`} />
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <Upload className="w-10 h-10" />
@@ -413,8 +475,10 @@ Keep it simple and practical for an Indian farmer.`,
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="border-[#C62828] text-[#C62828] hover:bg-[#FFEBEE] w-full">
+                    <Button variant="outline" className="border-[#C62828] text-[#C62828] hover:bg-[#FFEBEE] w-full"
+                      disabled={locationLoading || !lat || lat === 0}>
                       <AlertTriangle className="w-4 h-4 mr-2" /> Alert Authorities
+                      {locationLoading && ' (Getting location...)'}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
