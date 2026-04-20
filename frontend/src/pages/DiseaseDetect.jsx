@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +33,10 @@ export default function DiseaseDetect() {
   const [error, setError] = useState('')
   const [reported, setReported] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [webcamOpen, setWebcamOpen] = useState(false)
+  const [stream, setStream] = useState(null)
+  const videoRef = useRef()
+  const canvasRef = useRef()
 
   const downloadPDF = () => {
     const pdf = new jsPDF()
@@ -307,6 +311,56 @@ Keep it simple and practical for an Indian farmer.`,
     setReported(false)
   }
 
+  const openWebcam = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      setStream(mediaStream)
+      setWebcamOpen(true)
+      setError('')
+    } catch (err) {
+      setError('Camera access denied. Please allow camera permission.')
+    }
+  }
+
+  const closeWebcam = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setWebcamOpen(false)
+  }
+
+  const capturePhoto = () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0)
+
+    canvas.toBlob((blob) => {
+      const file = new File([blob], `webcam-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      handleFile(file)
+      closeWebcam()
+    }, 'image/jpeg', 0.95)
+  }
+
+  useEffect(() => {
+    if (webcamOpen && stream && videoRef.current) {
+      videoRef.current.srcObject = stream
+    }
+  }, [webcamOpen, stream])
+
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
       <div className="mt-8 mb-6">
@@ -341,9 +395,9 @@ Keep it simple and practical for an Indian farmer.`,
               <input ref={fileRef} type="file" accept="image/*" className="hidden"
                 onChange={e => handleFile(e.target.files[0])} />
 
-              {/* Camera button for mobile */}
+              {/* Camera button - works on both mobile and desktop */}
               <Button variant="outline" size="sm" className="w-full mt-3 border-gray-300 text-gray-600"
-                onClick={() => { fileRef.current.accept = 'image/*;capture=camera'; fileRef.current.click() }}>
+                onClick={openWebcam}>
                 <Camera className="w-4 h-4 mr-2" /> Take Photo
               </Button>
             </CardContent>
@@ -512,6 +566,32 @@ Keep it simple and practical for an Indian farmer.`,
           )}
         </div>
       </div>
+
+      {/* Webcam Modal */}
+      {webcamOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#1B4332]">Capture Photo</h3>
+              <button onClick={closeWebcam} className="text-gray-400 hover:text-gray-600">
+                ✕
+              </button>
+            </div>
+            <div className="relative bg-black rounded-lg overflow-hidden mb-4">
+              <video ref={videoRef} autoPlay playsInline className="w-full h-auto" />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={capturePhoto} className="flex-1 bg-[#2D6A4F] hover:bg-[#1B4332] text-white">
+                <Camera className="w-4 h-4 mr-2" /> Capture
+              </Button>
+              <Button onClick={closeWebcam} variant="outline" className="flex-1 border-gray-300 text-gray-600">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
