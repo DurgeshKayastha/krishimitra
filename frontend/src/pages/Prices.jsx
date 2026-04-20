@@ -23,6 +23,14 @@ const STATES = [
   'Telangana', 'Uttar Pradesh', 'West Bengal'
 ]
 
+const MH_DISTRICTS = [
+  'Ahmednagar', 'Akola', 'Amravati', 'Aurangabad', 'Beed', 'Bhandara', 'Buldhana', 'Chandrapur',
+  'Dhule', 'Gadchiroli', 'Gondia', 'Hingoli', 'Jalgaon', 'Jalna', 'Kolhapur', 'Latur',
+  'Mumbai City', 'Mumbai Suburban', 'Nagpur', 'Nanded', 'Nandurbar', 'Nashik', 'Osmanabad',
+  'Palghar', 'Parbhani', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli', 'Satara', 'Sindhudurg',
+  'Solapur', 'Thane', 'Wardha', 'Washim', 'Yavatmal'
+]
+
 export default function Prices() {
   const [state, setState] = useState('Maharashtra')
   const [district, setDistrict] = useState('')
@@ -52,7 +60,14 @@ export default function Prices() {
 
   // build dynamic district and commodity lists from actual data
   const districts = useMemo(() => {
-    const set = new Set(allRecords.filter(r => !state || r.state === state).map(r => r.district).filter(Boolean))
+    if (state === 'Maharashtra') {
+      // Use full list for Maharashtra, merge with API data
+      const apiDistricts = new Set(allRecords.filter(r => r.state === state).map(r => r.district).filter(Boolean))
+      const merged = new Set([...MH_DISTRICTS, ...Array.from(apiDistricts)])
+      return ['All Districts', ...Array.from(merged).sort((a, b) => a.localeCompare(b))]
+    }
+    // For other states, use API data only
+    const set = new Set(allRecords.filter(r => r.state === state).map(r => r.district).filter(Boolean))
     return ['All Districts', ...Array.from(set).sort((a, b) => a.localeCompare(b))]
   }, [allRecords, state])
 
