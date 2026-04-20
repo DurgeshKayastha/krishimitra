@@ -154,6 +154,7 @@ export default function VoiceAssistant() {
         role: 'assistant',
         text: answer,
         searchUsed: data.searchUsed,
+        priceUsed: data.priceUsed,
       }])
       if (autoSpeak && ttsSupported) speak(answer, currentLang.speechCode)
     } catch (e) {
@@ -215,6 +216,9 @@ export default function VoiceAssistant() {
                   <span translate="no">{msg.text}</span>
                   {msg.searchUsed && (
                     <span className="block mt-1 text-xs opacity-60">🌐 Web search used</span>
+                  )}
+                  {msg.priceUsed && (
+                    <span className="block mt-1 text-xs opacity-60">💰 Live price data</span>
                   )}
                 </div>
               </div>
