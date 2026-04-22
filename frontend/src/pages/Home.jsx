@@ -110,7 +110,7 @@ function FeatureCard({ feature, onLoginClick }) {
 
   return (
     <div
-      className="relative bg-white border border-gray-200 rounded-xl p-5 cursor-pointer overflow-hidden transition-all duration-200 hover:border-[#2D6A4F] hover:shadow-md group"
+      className="relative bg-white border border-gray-200 rounded-xl p-5 cursor-pointer overflow-hidden transition-all duration-300 hover:border-[#2D6A4F] hover:shadow-xl hover:-translate-y-1 group"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={handleClick}
@@ -155,41 +155,47 @@ export default function Home() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#f9fafb]">
+    <div className="min-h-screen bg-gradient-to-b from-[#f0fdf4] via-white to-[#f9fafb]">
       {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-10">
-          <div className="flex-1">
-            <span className="text-xs font-semibold tracking-widest text-[#2D6A4F] uppercase mb-3 block">
-              कृषि मित्र — Krishi Mitra
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-bold text-[#1B4332] leading-tight mb-5">
-              Mandi prices, crop advice &amp; disease alerts —
-              <span className="text-[#2D6A4F]"> built for Indian farmers.</span>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-12">
+          <div className="flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[#D8F3DC] to-[#f0fdf4] px-4 py-2 rounded-full mb-6">
+              <span className="w-2 h-2 bg-[#2D6A4F] rounded-full animate-pulse"></span>
+              <span className="text-xs font-semibold text-[#1B4332]">
+                कृषि मित्र — Your Farming Companion
+              </span>
+            </div>
+            <h1 className="text-5xl sm:text-6xl font-bold text-[#1B4332] leading-tight mb-6">
+              Smart Farming
+              <br />
+              <span className="bg-gradient-to-r from-[#2D6A4F] to-[#52B788] bg-clip-text text-transparent">
+                Starts Here
+              </span>
             </h1>
-            <p className="text-base text-gray-500 max-w-xl mb-8 leading-relaxed">
-              Check today's mandi rates, get AI crop suggestions for your soil, detect plant diseases from a photo, and stay updated on government schemes.
+            <p className="text-lg text-gray-600 max-w-xl mb-8 leading-relaxed">
+              Real-time mandi prices, AI-powered crop advice, instant disease detection, and weather forecasts — all in one place, built for Indian farmers.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-4">
               {user ? (
                 <>
                   <Button size="lg" onClick={() => navigate('/prices')}
-                    className="bg-[#2D6A4F] hover:bg-[#1B4332] text-white rounded-lg px-7">
-                    Today's Mandi Prices
+                    className="bg-gradient-to-r from-[#2D6A4F] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-white rounded-lg px-8 shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                    View Mandi Prices
                   </Button>
                   <Button size="lg" variant="outline" onClick={() => navigate('/crop-advisor')}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-7">
+                    className="border-2 border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#f0fdf4] rounded-lg px-8 transition-all hover:scale-105">
                     Get Crop Advice
                   </Button>
                 </>
               ) : (
                 <>
                   <Button size="lg" onClick={() => setLoginOpen(true)}
-                    className="bg-[#2D6A4F] hover:bg-[#1B4332] text-white rounded-lg px-7">
-                    Get Started — It's Free
+                    className="bg-gradient-to-r from-[#2D6A4F] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-white rounded-lg px-8 shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                    Get Started — Free Forever
                   </Button>
                   <Button size="lg" variant="outline" onClick={() => setLoginOpen(true)}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-7">
+                    className="border-2 border-[#2D6A4F] text-[#2D6A4F] hover:bg-[#f0fdf4] rounded-lg px-8 transition-all hover:scale-105">
                     Sign In
                   </Button>
                 </>
@@ -198,11 +204,12 @@ export default function Home() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4 lg:w-72 shrink-0">
-            {stats.map((s) => (
-              <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4">
-                <div className="text-2xl font-bold text-[#1B4332]">{s.value}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          <div className="grid grid-cols-2 gap-5 lg:w-80 shrink-0 animate-in fade-in slide-in-from-right-4 duration-700 delay-200">
+            {stats.map((s, idx) => (
+              <div key={s.label} className="bg-white border-2 border-gray-100 rounded-2xl p-6 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                style={{ animationDelay: `${idx * 100}ms` }}>
+                <div className="text-3xl font-bold bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] bg-clip-text text-transparent">{s.value}</div>
+                <div className="text-sm text-gray-500 mt-1">{s.label}</div>
               </div>
             ))}
           </div>
@@ -214,16 +221,18 @@ export default function Home() {
       </div>
 
       {/* Feature cards */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">What you can do</p>
-          {!user && (
-            <p className="text-xs text-gray-400 flex items-center gap-1">
-              <Lock className="w-3 h-3" /> Sign in to unlock all features
-            </p>
-          )}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-[#1B4332] mb-3">Everything You Need</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">Comprehensive farming tools powered by AI and real-time government data</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {!user && (
+          <div className="flex items-center justify-center gap-2 mb-8 text-sm text-gray-500">
+            <Lock className="w-4 h-4" />
+            <span>Sign in to unlock all features</span>
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((f) => (
             <FeatureCard key={f.to} feature={f} onLoginClick={() => setLoginOpen(true)} />
           ))}
@@ -231,10 +240,16 @@ export default function Home() {
       </section>
 
       {/* Bottom strip */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-400">
-          <span>Data from <span className="text-gray-600 font-medium">Agmarknet · Ministry of Agriculture, Govt. of India</span></span>
-          <span>AI powered by <span className="text-gray-600 font-medium">Groq · Llama 4</span></span>
+      <section className="border-t border-gray-200 bg-gradient-to-r from-white to-[#f0fdf4]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-wrap items-center justify-between gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-gray-500">Data from <span className="text-[#1B4332] font-semibold">Agmarknet · Ministry of Agriculture</span></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+            <span className="text-gray-500">AI powered by <span className="text-[#1B4332] font-semibold">Groq · Llama 4</span></span>
+          </div>
         </div>
       </section>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { getPrices, postGroq } from '@/lib/api'
 import { formatPrice } from '@/lib/utils'
-import { RefreshCw, Download, TrendingUp } from 'lucide-react'
+import { RefreshCw, Download, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 const MOCK_PRICES = [
   { state: 'Maharashtra', district: 'Ahmednagar', market: 'Kopargaon APMC', commodity: 'Maize', variety: 'Other', grade: 'Non-FAQ', arrival_date: '13/04/2026', min_price: 1326, max_price: 1798, modal_price: 1600 },
@@ -32,6 +32,7 @@ const MH_DISTRICTS = [
 ]
 
 export default function Prices() {
+  const queryClient = useQueryClient()
   const [state, setState] = useState('Maharashtra')
   const [district, setDistrict] = useState('')
   const [market, setMarket] = useState('')
@@ -51,6 +52,8 @@ export default function Prices() {
       }
     },
     staleTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Don't refetch on component mount if data exists
   })
 
   const allRecords = useMemo(() => {
@@ -158,52 +161,59 @@ export default function Prices() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-      <div className="mt-8 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#1B4332]">Crop Prices Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] bg-clip-text text-transparent">Crop Prices Dashboard</h1>
+          <p className="text-sm text-gray-600 mt-2 flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
             Live mandi prices from Agmarknet · {isLoading ? '...' : `${records.length} records`}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="border-[#2D6A4F] text-[#2D6A4F]">
+          <Button variant="outline" size="sm" onClick={() => {
+            queryClient.clear()
+            window.location.reload()
+          }} className="border-[#C62828] text-[#C62828] hover:bg-red-50 transition-all hover:scale-105">
+            <RefreshCw className="w-4 h-4 mr-1" /> Force Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="border-[#2D6A4F] text-[#2D6A4F] hover:bg-green-50 transition-all hover:scale-105">
             <RefreshCw className="w-4 h-4 mr-1" /> Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV} className="border-[#2D6A4F] text-[#2D6A4F]">
-            <Download className="w-4 h-4 mr-1" /> Export CSV
+          <Button variant="outline" size="sm" onClick={exportCSV} className="border-[#2D6A4F] text-[#2D6A4F] hover:bg-green-50 transition-all hover:scale-105">
+            <Download className="w-4 h-4 mr-1" /> Export
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <Card className="rounded-xl shadow-sm border border-gray-100 mb-6">
-        <CardContent className="p-4 flex flex-wrap gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">State</label>
+      <Card className="rounded-xl shadow-md border-2 border-gray-100 mb-6 hover:shadow-lg transition-shadow">
+        <CardContent className="p-5 flex flex-wrap gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-gray-600 font-semibold">State</label>
             <select value={state} onChange={e => setState(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:border-[#2D6A4F] focus:outline-none">
+              className="border-2 border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 transition-all">
               {STATES.map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">District</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-gray-600 font-semibold">District</label>
             <select value={district} onChange={e => setDistrict(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:border-[#2D6A4F] focus:outline-none min-w-[160px]">
+              className="border-2 border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 transition-all min-w-[160px]">
               {isLoading ? <option>Loading...</option> : districts.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">Market</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-gray-600 font-semibold">Market</label>
             <select value={market} onChange={e => setMarket(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:border-[#2D6A4F] focus:outline-none min-w-[160px]">
+              className="border-2 border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 transition-all min-w-[160px]">
               {isLoading ? <option>Loading...</option> : markets.map(m => <option key={m}>{m}</option>)}
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">Commodity</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-gray-600 font-semibold">Commodity</label>
             <select value={commodity} onChange={e => setCommodity(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:border-[#2D6A4F] focus:outline-none min-w-[160px]">
+              className="border-2 border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#2D6A4F] focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]/20 transition-all min-w-[160px]">
               {isLoading ? <option>Loading...</option> : commodities.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
@@ -213,20 +223,20 @@ export default function Prices() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Price Table */}
         <div className="lg:col-span-2">
-          <Card className="rounded-xl shadow-sm border border-gray-100">
+          <Card className="rounded-xl shadow-md border-2 border-gray-100 hover:shadow-lg transition-shadow">
             <CardContent className="p-0">
-              <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+              <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-[#f0fdf4] text-[#1B4332] sticky top-0">
+                  <thead className="bg-gradient-to-r from-[#f0fdf4] to-[#D8F3DC] text-[#1B4332] sticky top-0 shadow-sm">
                     <tr>
-                      <th className="text-left px-4 py-3 font-semibold">Commodity</th>
-                      <th className="text-left px-4 py-3 font-semibold hidden sm:table-cell">Market</th>
-                      <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">District</th>
-                      <th className="text-left px-4 py-3 font-semibold hidden lg:table-cell">Grade</th>
-                      <th className="text-left px-4 py-3 font-semibold hidden lg:table-cell">Variety</th>
-                      <th className="text-right px-4 py-3 font-semibold">Min</th>
-                      <th className="text-right px-4 py-3 font-semibold">Max</th>
-                      <th className="text-right px-4 py-3 font-semibold text-[#E76F00]">Modal</th>
+                      <th className="text-left px-4 py-4 font-bold">Commodity</th>
+                      <th className="text-left px-4 py-4 font-bold hidden sm:table-cell">Market</th>
+                      <th className="text-left px-4 py-4 font-bold hidden md:table-cell">District</th>
+                      <th className="text-left px-4 py-4 font-bold hidden lg:table-cell">Grade</th>
+                      <th className="text-left px-4 py-4 font-bold hidden lg:table-cell">Variety</th>
+                      <th className="text-right px-4 py-4 font-bold">Min</th>
+                      <th className="text-right px-4 py-4 font-bold">Max</th>
+                      <th className="text-right px-4 py-4 font-bold text-[#E76F00]">Modal</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -247,21 +257,23 @@ export default function Prices() {
                       <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No records found for selected filters.</td></tr>
                     ) : (
                       records.map((r, i) => (
-                        <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-[#111827]">{r.commodity}</td>
-                          <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{r.market}</td>
-                          <td className="px-4 py-3 text-gray-400 hidden md:table-cell">{r.district}</td>
-                          <td className="px-4 py-3 hidden lg:table-cell">
-                            <span className={`inline-block w-3 h-3 rounded-full ${
-                              r.grade === 'FAQ' ? 'bg-green-500' :
-                              r.grade === 'Non-FAQ' ? 'bg-orange-400' :
-                              'bg-gray-300'
-                            }`} title={r.grade || '—'} />
+                        <tr key={i} className="border-t border-gray-100 hover:bg-gradient-to-r hover:from-[#f0fdf4] hover:to-white transition-all">
+                          <td className="px-4 py-4 font-semibold text-[#111827]">{r.commodity}</td>
+                          <td className="px-4 py-4 text-gray-600 hidden sm:table-cell text-sm">{r.market}</td>
+                          <td className="px-4 py-4 text-gray-500 hidden md:table-cell text-sm">{r.district}</td>
+                          <td className="px-4 py-4 hidden lg:table-cell">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                              r.grade === 'FAQ' ? 'bg-green-100 text-green-700' :
+                              r.grade === 'Non-FAQ' ? 'bg-orange-100 text-orange-700' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {r.grade || '—'}
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">{r.variety || '—'}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">{formatPrice(r.min_price)}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">{formatPrice(r.max_price)}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-[#E76F00]">{formatPrice(r.modal_price)}</td>
+                          <td className="px-4 py-4 text-gray-500 text-xs hidden lg:table-cell">{r.variety || '—'}</td>
+                          <td className="px-4 py-4 text-right text-gray-600 font-medium">{formatPrice(r.min_price)}</td>
+                          <td className="px-4 py-4 text-right text-gray-600 font-medium">{formatPrice(r.max_price)}</td>
+                          <td className="px-4 py-4 text-right font-bold text-[#E76F00] text-base">{formatPrice(r.modal_price)}</td>
                         </tr>
                       ))
                     )}
@@ -273,10 +285,13 @@ export default function Prices() {
         </div>
 
         {/* Right column */}
-        <div className="flex flex-col gap-4">
-          <Card className="rounded-xl shadow-sm border border-gray-100">
-            <CardContent className="p-4">
-              <p className="text-sm font-semibold text-[#1B4332] mb-3">Modal Price by Commodity (₹/quintal)</p>
+        <div className="flex flex-col gap-5">
+          <Card className="rounded-xl shadow-md border-2 border-gray-100 hover:shadow-lg transition-shadow">
+            <CardContent className="p-5">
+              <p className="text-sm font-bold text-[#1B4332] mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Modal Price by Commodity (₹/quintal)
+              </p>
               {isLoading ? <Skeleton className="h-40 w-full" /> : (
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -291,12 +306,14 @@ export default function Prices() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-xl shadow-sm border border-gray-100 bg-[#f0fdf4]">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-4 h-4 text-[#2D6A4F]" />
-                <p className="text-sm font-semibold text-[#1B4332]">AI Price Insight</p>
-                <Badge className="bg-[#D8F3DC] text-[#2D6A4F] text-xs">Groq AI</Badge>
+          <Card className="rounded-xl shadow-md border-2 border-gradient-to-r from-[#2D6A4F] to-[#52B788] bg-gradient-to-br from-[#f0fdf4] to-white hover:shadow-lg transition-shadow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2D6A4F] to-[#52B788] flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-white" />
+                </div>
+                <p className="text-sm font-bold text-[#1B4332]">AI Price Insight</p>
+                <Badge className="bg-gradient-to-r from-[#D8F3DC] to-[#f0fdf4] text-[#2D6A4F] text-xs border border-[#2D6A4F]/20">Groq AI</Badge>
               </div>
               {insightLoading ? (
                 <div className="space-y-2">

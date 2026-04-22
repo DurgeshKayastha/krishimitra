@@ -53,7 +53,7 @@ export default function CropAdvisor() {
     taluka: '',
     village: '',
     soilType: 'Black/Regur',
-    pH: 6.5,
+    pH: 7.0,
     nitrogen: 'Medium',
     phosphorus: 'Medium',
     potassium: 'Medium',
@@ -79,21 +79,23 @@ export default function CropAdvisor() {
         )
         const data = await response.json()
         
-        console.log('Reverse geocoding result:', data) // Debug log
+        console.log('🗺️ Nominatim API Response:', data)
+        console.log('📍 Address object:', data.address)
         
         if (data.address) {
-          // Try multiple address fields
+          // Try multiple address fields in priority order
           const possibleDistrict = 
+            data.address.state_district || // Most reliable for districts
             data.address.county || 
-            data.address.state_district || 
             data.address.city || 
-            data.address.town || 
-            data.address.village ||
-            data.address.municipality
+            data.address.town ||
+            data.address.municipality ||
+            data.address.village
           
           const state = data.address.state
           
-          console.log('Detected district:', possibleDistrict, 'State:', state) // Debug log
+          console.log('🔍 Raw district from API:', possibleDistrict)
+          console.log('🔍 State from API:', state)
           
           // Improved matching - try multiple strategies
           if (possibleDistrict) {
@@ -103,36 +105,46 @@ export default function CropAdvisor() {
             let matchedDistrict = MH_DISTRICTS.find(d => 
               d.toLowerCase() === districtLower
             )
+            console.log('Strategy 1 (exact match):', matchedDistrict || 'No match')
             
-            // Strategy 2: Contains match
-            if (!matchedDistrict) {
-              matchedDistrict = MH_DISTRICTS.find(d => 
-                districtLower.includes(d.toLowerCase()) || 
-                d.toLowerCase().includes(districtLower)
-              )
-            }
-            
-            // Strategy 3: Remove common suffixes and try again
+            // Strategy 2: Remove common suffixes first, then exact match
             if (!matchedDistrict) {
               const cleanedDistrict = districtLower
                 .replace(/\s+district$/i, '')
                 .replace(/\s+taluka$/i, '')
                 .replace(/\s+tehsil$/i, '')
+                .replace(/\s+taluk$/i, '')
                 .trim()
               
               matchedDistrict = MH_DISTRICTS.find(d => 
-                d.toLowerCase() === cleanedDistrict ||
-                cleanedDistrict.includes(d.toLowerCase()) ||
-                d.toLowerCase().includes(cleanedDistrict)
+                d.toLowerCase() === cleanedDistrict
               )
+              console.log('Strategy 2 (cleaned exact):', cleanedDistrict, '→', matchedDistrict || 'No match')
+            }
+            
+            // Strategy 3: Partial match (district name contains API result)
+            if (!matchedDistrict) {
+              matchedDistrict = MH_DISTRICTS.find(d => 
+                d.toLowerCase().includes(districtLower)
+              )
+              console.log('Strategy 3 (district contains API):', matchedDistrict || 'No match')
+            }
+            
+            // Strategy 4: Partial match (API result contains district name)
+            if (!matchedDistrict) {
+              matchedDistrict = MH_DISTRICTS.find(d => 
+                districtLower.includes(d.toLowerCase())
+              )
+              console.log('Strategy 4 (API contains district):', matchedDistrict || 'No match')
             }
             
             if (matchedDistrict) {
-              console.log('Matched district:', matchedDistrict) // Debug log
+              console.log('✅ Final matched district:', matchedDistrict)
               setForm(f => ({ ...f, district: matchedDistrict }))
               setLocationDetected(true)
             } else {
-              console.log('No match found for:', possibleDistrict) // Debug log
+              console.log('❌ No match found for:', possibleDistrict)
+              console.log('💡 Available districts:', MH_DISTRICTS.join(', '))
             }
           }
           
@@ -141,11 +153,12 @@ export default function CropAdvisor() {
             const matchedState = STATES.find(s => state.includes(s))
             if (matchedState) {
               setForm(f => ({ ...f, state: matchedState }))
+              console.log('✅ Matched state:', matchedState)
             }
           }
         }
       } catch (err) {
-        console.log('Location detection failed:', err)
+        console.log('❌ Location detection failed:', err)
       }
     }
     
@@ -159,46 +172,76 @@ export default function CropAdvisor() {
     const fetchSoilData = async () => {
       setSoilDataLoading(true)
       try {
+        console.log('🌍 Fetching soil data for:', { lat, lon })
+        
         // SoilGrids REST API - provides soil properties at any location
-        const response = await fetch(
-          `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&property=phh2o&property=nitrogen&property=soc&depth=0-5cm&value=mean`
-        )
+        const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&property=phh2o&property=nitrogen&property=soc&depth=0-5cm&value=mean`
+        console.log('📡 SoilGrids API URL:', url)
+        
+        const response = await fetch(url)
+        
+        if (!response.ok) {
+          console.error('❌ SoilGrids API error:', response.status, response.statusText)
+          return
+        }
+        
         const data = await response.json()
+        console.log('📦 SoilGrids API Response:', data)
         
         if (data.properties?.layers) {
           const layers = data.properties.layers
+          console.log('🔬 Available layers:', layers.map(l => l.name))
           
           // Extract pH (phh2o)
           const phLayer = layers.find(l => l.name === 'phh2o')
+          console.log('🧪 pH Layer:', phLayer)
+          
           if (phLayer?.depths?.[0]?.values?.mean) {
             // SoilGrids returns pH * 10, so divide by 10
-            const pH = (phLayer.depths[0].values.mean / 10).toFixed(1)
+            const rawPH = phLayer.depths[0].values.mean
+            const pH = (rawPH / 10).toFixed(1)
+            console.log('✅ pH detected:', { raw: rawPH, calculated: pH })
             setForm(f => ({ ...f, pH: parseFloat(pH) }))
+          } else {
+            console.log('⚠️ No pH data in response')
           }
           
           // Extract Nitrogen (total nitrogen in g/kg)
           const nLayer = layers.find(l => l.name === 'nitrogen')
+          console.log('🧪 Nitrogen Layer:', nLayer)
+          
           if (nLayer?.depths?.[0]?.values?.mean) {
             const nValue = nLayer.depths[0].values.mean / 100 // Convert to g/kg
             // Classify as Low/Medium/High
             const nLevel = nValue < 1 ? 'Low' : nValue < 2 ? 'Medium' : 'High'
+            console.log('✅ Nitrogen detected:', { raw: nLayer.depths[0].values.mean, calculated: nValue, level: nLevel })
             setForm(f => ({ ...f, nitrogen: nLevel }))
+          } else {
+            console.log('⚠️ No nitrogen data in response')
           }
           
           // Soil Organic Carbon can help estimate P and K
           const socLayer = layers.find(l => l.name === 'soc')
+          console.log('🧪 SOC Layer:', socLayer)
+          
           if (socLayer?.depths?.[0]?.values?.mean) {
             const socValue = socLayer.depths[0].values.mean / 10 // dg/kg
             // Higher organic carbon usually means better P and K
             const pLevel = socValue < 10 ? 'Low' : socValue < 20 ? 'Medium' : 'High'
             const kLevel = socValue < 10 ? 'Low' : socValue < 20 ? 'Medium' : 'High'
+            console.log('✅ SOC detected:', { raw: socLayer.depths[0].values.mean, calculated: socValue, P: pLevel, K: kLevel })
             setForm(f => ({ ...f, phosphorus: pLevel, potassium: kLevel }))
+          } else {
+            console.log('⚠️ No SOC data in response')
           }
           
           setSoilDataFetched(true)
+          console.log('✅ Soil data fetch completed')
+        } else {
+          console.log('⚠️ No layers found in API response')
         }
       } catch (err) {
-        console.log('Soil data fetch failed:', err)
+        console.error('❌ Soil data fetch failed:', err)
       } finally {
         setSoilDataLoading(false)
       }
